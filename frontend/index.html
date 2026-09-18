@@ -1,0 +1,3749 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>Control Arm Digital Twin</title>
+
+
+<style>
+
+/* ============================================================
+   RESET
+   ============================================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+
+/* ============================================================
+   BODY
+   ============================================================ */
+
+body {
+
+    margin: 0;
+
+    height: 100vh;
+
+    overflow: hidden;
+
+    background: #0c1016;
+
+    color: #d8dee8;
+
+    font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+    font-size: 13px;
+}
+
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+
+header {
+
+    height: 48px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 18px;
+
+    background: #12181f;
+
+    border-bottom: 1px solid #28313b;
+}
+
+
+header h1 {
+
+    margin: 0;
+
+    font-size: 18px;
+
+    letter-spacing: 2px;
+
+    color: #f0f3f7;
+}
+
+
+.header-left {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-width: 0;
+}
+
+
+.nav-link {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-height: 28px;
+
+    padding: 0 12px;
+
+    border: 1px solid #2f7d78;
+
+    border-radius: 999px;
+
+    color: #45d6c0;
+
+    font-size: 11px;
+
+    letter-spacing: 1.3px;
+
+    text-transform: uppercase;
+
+    background: rgba(69, 214, 192, 0.06);
+}
+
+
+.status {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    font-size: 11px;
+
+    letter-spacing: 1px;
+}
+
+
+.status-dot {
+
+    width: 8px;
+
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #555;
+}
+
+
+.status-dot.connected {
+
+    background: #45d6c0;
+
+    box-shadow:
+        0 0 8px rgba(69, 214, 192, 0.7);
+}
+
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+
+.container {
+
+    height: calc(100vh - 48px);
+
+    padding: 10px;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(340px, 0.85fr)
+        minmax(520px, 1.55fr);
+
+    gap: 10px;
+
+    max-width: 100%;
+
+    margin: 0;
+}
+
+
+.column {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 16px;
+
+    height: 100%;
+
+    min-height: 0;
+}
+
+
+.left-column {
+
+    display: grid;
+
+    grid-template-rows:
+        minmax(150px, 0.9fr)
+        minmax(230px, 2.5fr)
+        minmax(200px, 2.2fr)
+        minmax(120px, 1.1fr);
+
+    gap: 10px;
+
+    height: 100%;
+
+    min-height: 0;
+}
+
+
+.left-column .panel {
+
+    display: flex;
+
+    flex-direction: column;
+
+    min-height: 0;
+
+    height: 100%;
+
+    overflow: visible;
+}
+
+
+.left-column .panel:first-child {
+
+    min-height: 150px;
+}
+
+
+.left-column .panel:last-child {
+
+    min-height: 120px;
+}
+
+
+.right-column {
+
+    min-height: 0;
+
+    display: grid;
+
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+
+    gap: 10px;
+
+    height: 100%;
+}
+
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+
+.panel {
+
+    background: #12181f;
+
+    border: 1px solid #28313b;
+
+    border-radius: 4px;
+
+    padding: 10px 12px;
+}
+
+
+.panel-title {
+
+    color: #8d99a8;
+
+    font-size: 10px;
+
+    letter-spacing: 2px;
+
+    text-transform: uppercase;
+
+    padding-bottom: 8px;
+
+    margin-bottom: 8px;
+
+    border-bottom: 1px solid #28313b;
+}
+
+
+/* ============================================================
+   PID
+   ============================================================ */
+
+.pid-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(4, 1fr);
+
+    gap: 10px;
+
+    flex: 1 1 auto;
+}
+
+
+.input-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 6px;
+}
+
+
+.input-group label {
+
+    color: #7f8a99;
+
+    font-size: 10px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+}
+
+
+input[type="number"] {
+
+    width: 100%;
+
+    background: #0c1016;
+
+    border: 1px solid #303b47;
+
+    color: #f1f4f8;
+
+    padding: 9px 8px;
+
+    border-radius: 3px;
+
+    font-family: inherit;
+
+    font-size: 13px;
+
+    outline: none;
+}
+
+
+input[type="number"]:focus {
+
+    border-color: #45d6c0;
+}
+
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+.button-row {
+
+    display: grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap: 10px;
+
+    margin-top: auto;
+
+    padding-top: 12px;
+}
+
+
+button {
+
+    border: 1px solid #34404d;
+
+    background: #161d26;
+
+    color: #cdd5df;
+
+    padding: 10px;
+
+    font-family: inherit;
+
+    font-size: 11px;
+
+    letter-spacing: 1px;
+
+    cursor: pointer;
+
+    border-radius: 3px;
+}
+
+
+button:hover {
+
+    background: #1d2631;
+}
+
+
+select {
+
+    width: 100%;
+
+    background: #0c1016;
+
+    border: 1px solid #303b47;
+
+    color: #f1f4f8;
+
+    padding: 9px 8px;
+
+    border-radius: 3px;
+
+    font-family: inherit;
+
+    font-size: 11px;
+
+    letter-spacing: 1px;
+
+    outline: none;
+}
+
+
+button.primary {
+
+    border-color: #347d74;
+
+    color: #45d6c0;
+}
+
+
+button.danger {
+
+    border-color: #7e3d3d;
+
+    color: #e87a7a;
+}
+
+
+/* ============================================================
+   TARGET MOTOR
+   ============================================================ */
+
+.target-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 12px;
+
+    flex: 1 1 auto;
+
+    min-height: 0;
+}
+
+
+.target-box {
+
+    background: #161d26;
+
+    border: 1px solid #28313b;
+
+    border-radius: 4px;
+
+    padding: 12px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    height: 100%;
+}
+
+
+.target-header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 12px;
+}
+
+
+.target-name {
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+
+.target-value {
+
+    font-size: 14px;
+
+    font-weight: bold;
+}
+
+
+.motor1-text {
+
+    color: #f39c4a;
+}
+
+
+.motor2-text {
+
+    color: #45d6c0;
+}
+
+
+.motor3-text {
+
+    color: #e5c454;
+}
+
+
+/* ============================================================
+   SLIDER
+   ============================================================ */
+
+.slider-container {
+
+    width: 100%;
+}
+
+
+input[type="range"] {
+
+    width: 100%;
+
+    height: 5px;
+
+    appearance: none;
+
+    -webkit-appearance: none;
+
+    background: #303944;
+
+    border-radius: 5px;
+
+    outline: none;
+
+    cursor: pointer;
+}
+
+
+input[type="range"]::-webkit-slider-thumb {
+
+    appearance: none;
+
+    -webkit-appearance: none;
+
+    width: 14px;
+
+    height: 14px;
+
+    border-radius: 50%;
+
+    background: #d8dee8;
+
+    border: 2px solid #0c1016;
+
+    cursor: pointer;
+}
+
+
+input[type="range"]::-moz-range-thumb {
+
+    width: 14px;
+
+    height: 14px;
+
+    border-radius: 50%;
+
+    background: #d8dee8;
+
+    border: 2px solid #0c1016;
+
+    cursor: pointer;
+}
+
+
+.chart-toggle {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    margin-top: auto;
+
+    padding-top: 10px;
+
+    border-top: 1px solid #232c35;
+
+    color: #7f8a99;
+
+    font-size: 10px;
+
+    letter-spacing: 1px;
+
+    text-transform: uppercase;
+}
+
+
+.chart-toggle label {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    cursor: pointer;
+}
+
+
+.chart-toggle input[type="checkbox"] {
+
+    width: 14px;
+
+    height: 14px;
+
+    accent-color: #45d6c0;
+}
+
+
+.slider-scale {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    margin-top: 5px;
+
+    color: #5f6b79;
+
+    font-size: 9px;
+}
+
+
+/* ============================================================
+   ANGLE INPUT
+   ============================================================ */
+
+.angle-input {
+
+    margin-top: 10px;
+}
+
+
+.angle-input label {
+
+    display: block;
+
+    color: #687584;
+
+    font-size: 9px;
+
+    margin-bottom: 5px;
+
+    letter-spacing: 1px;
+}
+
+
+/* ============================================================
+   MOTOR TELEMETRY
+   ============================================================ */
+
+.motor-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 10px;
+
+    height: 100%;
+
+    flex: 1 1 auto;
+}
+
+
+.motor-card {
+
+    background: #161d26;
+
+    border: 1px solid #2b3540;
+
+    border-radius: 4px;
+
+    padding: 12px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    height: 100%;
+}
+
+
+.motor-card.m1 {
+
+    border-top: 2px solid #f39c4a;
+}
+
+
+.motor-card.m2 {
+
+    border-top: 2px solid #45d6c0;
+}
+
+
+.motor-card.m3 {
+
+    border-top: 2px solid #e5c454;
+}
+
+
+.motor-name {
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+    margin-bottom: 12px;
+
+    letter-spacing: 1px;
+}
+
+
+.m1 .motor-name {
+
+    color: #f39c4a;
+}
+
+
+.m2 .motor-name {
+
+    color: #45d6c0;
+}
+
+
+.m3 .motor-name {
+
+    color: #e5c454;
+}
+
+
+.value-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 5px 0;
+
+    border-bottom: 1px solid #232c35;
+}
+
+
+.value-row:last-child {
+
+    border-bottom: none;
+}
+
+
+.value-label {
+
+    color: #7f8a99;
+}
+
+
+.value {
+
+    color: #e0e5eb;
+
+    font-weight: bold;
+}
+
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+
+.chart-panel {
+
+    flex: 1 1 0;
+
+    min-height: 0;
+
+    display: flex;
+
+    flex-direction: column;
+
+    height: 100%;
+}
+
+
+canvas {
+
+    width: 100%;
+
+    height: calc(100% - 26px);
+
+    min-height: 110px;
+
+    display: block;
+
+    background: #0c1016;
+
+    border: 1px solid #202933;
+
+    flex: 1;
+}
+
+
+/* ============================================================
+   TEST
+   ============================================================ */
+
+.test-controls {
+
+    display: grid;
+
+    grid-template-columns:
+        1.1fr 1.6fr 1.7fr;
+
+    gap: 8px;
+
+    align-items: stretch;
+
+    flex: 1 1 auto;
+}
+
+
+.test-status {
+
+    margin-top: 12px;
+
+    color: #7f8a99;
+
+    font-size: 11px;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1000px) {
+
+    body {
+        overflow: auto;
+    }
+
+    .container {
+        height: auto;
+        grid-template-columns: 1fr;
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .motor-grid,
+    .target-grid,
+    .pid-grid {
+
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .button-row,
+    .test-controls {
+
+        grid-template-columns: 1fr;
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- ============================================================
+     HEADER
+     ============================================================ -->
+
+<header>
+
+    <div class="header-left">
+
+        <h1>
+            CONTROL ARM // DIGITAL TWIN
+        </h1>
+
+        <a class="nav-link" href="/urdf">
+            URDF
+        </a>
+
+    </div>
+
+
+    <div class="status">
+
+        <div
+            id="statusDot"
+            class="status-dot">
+        </div>
+
+        <span id="statusText">
+            DISCONNECTED
+        </span>
+
+    </div>
+
+</header>
+
+
+<!-- ============================================================
+     MAIN
+     ============================================================ -->
+
+<div class="container">
+
+
+    <!-- ========================================================
+         LEFT COLUMN
+         ======================================================== -->
+
+    <div class="column left-column">
+
+
+        <!-- ====================================================
+             PID
+             ==================================================== -->
+
+        <div class="panel">
+
+            <div class="panel-title">
+                PID
+            </div>
+
+
+            <div class="pid-grid">
+
+
+                <div class="input-group">
+
+                    <label for="pidMotor">
+                        MOTOR
+                    </label>
+
+                    <select id="pidMotor" onchange="onPidMotorChanged()">
+                        <option value="all">ALL</option>
+                        <option value="0">MOTOR 01</option>
+                        <option value="1">MOTOR 02</option>
+                        <option value="2">MOTOR 03</option>
+                    </select>
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="kp">
+                        KP
+                    </label>
+
+                    <input
+                        id="kp"
+                        type="number"
+                        step="0.01"
+                        value="2.0">
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="ki">
+                        KI
+                    </label>
+
+                    <input
+                        id="ki"
+                        type="number"
+                        step="0.001"
+                        value="0.0">
+
+                </div>
+
+
+                <div class="input-group">
+
+                    <label for="kd">
+                        KD
+                    </label>
+
+                    <input
+                        id="kd"
+                        type="number"
+                        step="0.001"
+                        value="0.02">
+
+                </div>
+
+            </div>
+
+
+            <div class="button-row">
+
+                <button
+                    class="primary"
+                    onclick="applyPID()">
+
+                    APPLY GAINS
+
+                </button>
+
+
+                <button
+                    class="primary"
+                    id="simulationButton"
+                    onclick="toggleSimulation()">
+
+                    RUN
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- ====================================================
+             TARGET POSITIONS
+             ==================================================== -->
+
+        <div class="panel">
+
+            <div class="panel-title">
+                TARGET
+            </div>
+
+
+            <div class="target-grid">
+
+
+                <!-- ============================================
+                     MOTOR 1
+                     ============================================ -->
+
+                <div class="target-box">
+
+                    <div class="target-header">
+
+                        <span
+                            class="target-name motor1-text">
+
+                            MOTOR 01
+
+                        </span>
+
+                        <span
+                            id="sliderValue1"
+                            class="target-value motor1-text">
+
+                            0.0°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="slider-container">
+
+                        <input
+                            id="slider1"
+                            type="range"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            oninput="sliderChanged(0, this.value)">
+
+                    </div>
+
+
+                    <div class="slider-scale">
+
+                        <span>0°</span>
+
+                        <span>90°</span>
+
+                        <span>180°</span>
+
+                    </div>
+
+
+                    <div class="angle-input">
+
+                        <label>
+                            ANGLE [DEG]
+                        </label>
+
+                        <input
+                            id="target1"
+                            type="number"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            onchange="angleChanged(0, this.value)">
+
+                    </div>
+
+                    <div class="chart-toggle">
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                class="motor-chart-toggle"
+                                data-motor="0"
+                                checked>
+                            SHOW IN CHART
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ============================================
+                     MOTOR 2
+                     ============================================ -->
+
+                <div class="target-box">
+
+                    <div class="target-header">
+
+                        <span
+                            class="target-name motor2-text">
+
+                            MOTOR 02
+
+                        </span>
+
+                        <span
+                            id="sliderValue2"
+                            class="target-value motor2-text">
+
+                            0.0°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="slider-container">
+
+                        <input
+                            id="slider2"
+                            type="range"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            oninput="sliderChanged(1, this.value)">
+
+                    </div>
+
+
+                    <div class="slider-scale">
+
+                        <span>0°</span>
+
+                        <span>90°</span>
+
+                        <span>180°</span>
+
+                    </div>
+
+
+                    <div class="angle-input">
+
+                        <label>
+                            ANGLE [DEG]
+                        </label>
+
+                        <input
+                            id="target2"
+                            type="number"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            onchange="angleChanged(1, this.value)">
+
+                    </div>
+
+                    <div class="chart-toggle">
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                class="motor-chart-toggle"
+                                data-motor="1"
+                                checked>
+                            SHOW IN CHART
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ============================================
+                     MOTOR 3
+                     ============================================ -->
+
+                <div class="target-box">
+
+                    <div class="target-header">
+
+                        <span
+                            class="target-name motor3-text">
+
+                            MOTOR 03
+
+                        </span>
+
+                        <span
+                            id="sliderValue3"
+                            class="target-value motor3-text">
+
+                            0.0°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="slider-container">
+
+                        <input
+                            id="slider3"
+                            type="range"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            oninput="sliderChanged(2, this.value)">
+
+                    </div>
+
+
+                    <div class="slider-scale">
+
+                        <span>0°</span>
+
+                        <span>90°</span>
+
+                        <span>180°</span>
+
+                    </div>
+
+
+                    <div class="angle-input">
+
+                        <label>
+                            ANGLE [DEG]
+                        </label>
+
+                        <input
+                            id="target3"
+                            type="number"
+                            min="0"
+                            max="180"
+                            step="0.1"
+                            value="0"
+                            onchange="angleChanged(2, this.value)">
+
+                    </div>
+
+                    <div class="chart-toggle">
+
+                        <label>
+                            <input
+                                type="checkbox"
+                                class="motor-chart-toggle"
+                                data-motor="2"
+                                checked>
+                            SHOW IN CHART
+                        </label>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ====================================================
+             MOTOR TELEMETRY
+             ==================================================== -->
+
+        <div class="panel">
+
+            <div class="panel-title">
+                MOTOR DATA
+            </div>
+
+
+            <div class="motor-grid">
+
+
+                <!-- MOTOR 1 -->
+
+                <div class="motor-card m1">
+
+                    <div class="motor-name">
+                        MOTOR 01
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            POSITION
+                        </span>
+
+                        <span
+                            id="pos1"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            TARGET
+                        </span>
+
+                        <span
+                            id="tar1"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            ERROR
+                        </span>
+
+                        <span
+                            id="err1"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            PWM
+                        </span>
+
+                        <span
+                            id="pwm1"
+                            class="value">
+
+                            0
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MOTOR 2 -->
+
+                <div class="motor-card m2">
+
+                    <div class="motor-name">
+                        MOTOR 02
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            POSITION
+                        </span>
+
+                        <span
+                            id="pos2"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            TARGET
+                        </span>
+
+                        <span
+                            id="tar2"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            ERROR
+                        </span>
+
+                        <span
+                            id="err2"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            PWM
+                        </span>
+
+                        <span
+                            id="pwm2"
+                            class="value">
+
+                            0
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- MOTOR 3 -->
+
+                <div class="motor-card m3">
+
+                    <div class="motor-name">
+                        MOTOR 03
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            POSITION
+                        </span>
+
+                        <span
+                            id="pos3"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            TARGET
+                        </span>
+
+                        <span
+                            id="tar3"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            ERROR
+                        </span>
+
+                        <span
+                            id="err3"
+                            class="value">
+
+                            0.00°
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            PWM
+                        </span>
+
+                        <span
+                            id="pwm3"
+                            class="value">
+
+                            0
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ====================================================
+             TEST
+             ==================================================== -->
+
+        <div class="panel">
+
+            <div class="panel-title">
+                TEST
+            </div>
+
+
+            <div class="test-controls">
+
+                <button
+                    class="primary"
+                    id="testActionButton"
+                    onclick="toggleTestAction()">
+
+                    START
+
+                </button>
+
+
+                <select id="testPresetSelect">
+                    <option value="ramp_5s">RAMP 0 → 90 / 5s</option>
+                    <option value="sweep_2s">SWEEP 0 → 90 / 2s</option>
+                    <option value="triangle_6s">TRIANGLE 0 → 90 → 0 / 6s</option>
+                    <option value="step_90">STEP 90°</option>
+                    <option value="pulse_3s">PULSE 0 → 90 → 0 / 3s</option>
+                    <option value="square_4s">SQUARE 0 ↔ 180 / 4s</option>
+                </select>
+
+
+                <div style="display: flex; gap: 8px;">
+
+                    <select id="testMotorSelect">
+                        <option value="0">MOTOR 1</option>
+                        <option value="1">MOTOR 2</option>
+                        <option value="2">MOTOR 3</option>
+                    </select>
+
+                    <button
+                        onclick="downloadTest()">
+
+                        EXPORT
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="testStatus"
+                class="test-status">
+
+                IDLE
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- ========================================================
+         RIGHT COLUMN
+         ======================================================== -->
+
+    <div class="column right-column">
+
+
+        <!-- ====================================================
+             POSITION
+             ==================================================== -->
+
+        <div class="panel chart-panel">
+
+            <div class="panel-title">
+                POSITION
+            </div>
+
+
+            <canvas
+                id="positionChart">
+            </canvas>
+
+        </div>
+
+
+        <!-- ====================================================
+             ERROR
+             ==================================================== -->
+
+        <div class="panel chart-panel">
+
+            <div class="panel-title">
+                ERROR
+            </div>
+
+
+            <canvas
+                id="errorChart">
+            </canvas>
+
+        </div>
+
+
+        <!-- ====================================================
+             PWM
+             ==================================================== -->
+
+        <div class="panel chart-panel">
+
+            <div class="panel-title">
+                PWM
+            </div>
+
+
+            <canvas
+                id="pwmChart">
+            </canvas>
+
+        </div>
+
+
+
+
+    </div>
+
+</div>
+
+
+<script>
+
+/* ============================================================
+   WEBSOCKET
+   ============================================================ */
+
+let socket = null;
+
+let connected = false;
+
+
+/*
+ * IMPORTANTE:
+ *
+ * O gráfico NÃO começa automaticamente.
+ *
+ * Ele começa quando:
+ *
+ *     ENABLE SIMULATION
+ *
+ * E para somente quando:
+ *
+ *     STOP
+ */
+
+let graphRunning = false;
+
+
+/* ============================================================
+   DADOS DOS GRÁFICOS
+   ============================================================ */
+
+const MAX_POINTS = 500;
+
+const GRAPH_TIME_WINDOW = 10;
+
+
+const motorChartEnabled = [
+    true,
+    true,
+    true
+];
+
+
+let timeData = [];
+
+let lastGraphSampleTime = 0;
+
+
+let positionData = [
+    [],
+    [],
+    []
+];
+
+
+let targetData = [
+    [],
+    [],
+    []
+];
+
+
+let errorData = [
+    [],
+    [],
+    []
+];
+
+
+let pwmData = [
+    [],
+    [],
+    []
+];
+
+
+/* ============================================================
+   TESTE
+   ============================================================ */
+
+let testData = [];
+let testRecording = false;
+let pendingTestExport = false;
+let activeTestProfile = null;
+let activeTestTimer = null;
+let activeTestStart = 0;
+let testProfileActive = false;
+
+
+function setTestActionButtonState(isRunning) {
+
+    const button =
+        document.getElementById(
+            "testActionButton"
+        );
+
+    if (!button) return;
+
+    button.textContent =
+        isRunning ? "STOP" : "START";
+
+    button.classList.toggle(
+        "danger",
+        isRunning
+    );
+
+    button.classList.toggle(
+        "primary",
+        !isRunning
+    );
+
+}
+
+
+function updateTestStatus(statusText, recording) {
+
+    testRecording = recording;
+
+    const statusLabel =
+        document.getElementById(
+            "testStatus"
+        );
+
+    if (statusLabel) {
+        statusLabel.textContent = statusText;
+    }
+
+}
+
+
+function exportTestData() {
+
+    if (!testData || testData.length === 0) {
+        alert("No test data available yet.");
+        return;
+    }
+
+    let csv = "time,pos1,target1,error1,pwm1,pos2,target2,error2,pwm2,pos3,target3,error3,pwm3\n";
+
+    for (const row of testData) {
+
+        csv +=
+            row.time + "," +
+            row.position[0] + "," + row.target[0] + "," + row.error[0] + "," + row.pwm[0] + "," +
+            row.position[1] + "," + row.target[1] + "," + row.error[1] + "," + row.pwm[1] + "," +
+            row.position[2] + "," + row.target[2] + "," + row.error[2] + "," + row.pwm[2] + "\n";
+
+    }
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "test_data.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+
+}
+
+
+/* ============================================================
+   TEMPO DO GRÁFICO
+   ============================================================ */
+
+let graphStartTime = null;
+
+
+/* ============================================================
+   CONECTAR
+   ============================================================ */
+
+function setMotorChartVisibility(motor, enabled) {
+
+    motorChartEnabled[motor] = enabled;
+
+    drawAllCharts();
+
+}
+
+
+function bindMotorChartToggles() {
+
+    document
+        .querySelectorAll(
+            ".motor-chart-toggle"
+        )
+        .forEach(
+            (checkbox) => {
+
+                checkbox.addEventListener(
+                    "change",
+                    () => {
+
+                        const motor =
+                            Number(
+                                checkbox.dataset.motor
+                            );
+
+                        setMotorChartVisibility(
+                            motor,
+                            checkbox.checked
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+}
+
+
+function connect() {
+
+    const protocol =
+        location.protocol === "https:"
+            ? "wss:"
+            : "ws:";
+
+
+    socket = new WebSocket(
+        `${protocol}//${location.host}/ws`
+    );
+
+
+    socket.onopen = function() {
+
+        connected = true;
+
+
+        document
+            .getElementById("statusDot")
+            .classList.add("connected");
+
+
+        document
+            .getElementById("statusText")
+            .textContent =
+                "CONNECTED";
+
+
+        send({
+            type: "get_pid"
+        });
+
+    };
+
+
+    socket.onclose = function() {
+
+        connected = false;
+
+
+        document
+            .getElementById("statusDot")
+            .classList.remove("connected");
+
+
+        document
+            .getElementById("statusText")
+            .textContent =
+                "DISCONNECTED";
+
+
+        setTimeout(
+            connect,
+            2000
+        );
+
+    };
+
+
+    socket.onmessage = function(event) {
+
+        try {
+
+            const data =
+                JSON.parse(event.data);
+
+
+            if (
+                data.type ===
+                "feedback"
+            ) {
+
+                updateFeedback(data);
+
+            }
+
+
+            if (
+                data.type ===
+                "test_status"
+            ) {
+
+                const statusText =
+                    data.status === "recording"
+                        ? "RECORDING"
+                        : data.status === "ready"
+                            ? "READY"
+                            : "IDLE";
+
+                updateTestStatus(statusText, data.running === true);
+
+            }
+
+
+            if (
+                data.type ===
+                "test_data"
+            ) {
+
+                testData =
+                    data.data || [];
+
+                if (pendingTestExport && testData.length > 0) {
+                    pendingTestExport = false;
+                    exportTestData();
+                }
+
+            }
+
+
+            if (
+                data.type ===
+                "pid_ack"
+            ) {
+
+                const motor =
+                    data.motor ||
+                    "all";
+
+                pidMotorCache[motor] = {
+                    kp: data.kp,
+                    ki: data.ki,
+                    kd: data.kd,
+                };
+
+                if (motor === "all") {
+
+                    pidMotorCache["0"] = {
+                        kp: data.kp,
+                        ki: data.ki,
+                        kd: data.kd,
+                    };
+                    pidMotorCache["1"] = {
+                        kp: data.kp,
+                        ki: data.ki,
+                        kd: data.kd,
+                    };
+                    pidMotorCache["2"] = {
+                        kp: data.kp,
+                        ki: data.ki,
+                        kd: data.kd,
+                    };
+
+                }
+
+                if (
+                    document.getElementById(
+                        "pidMotor"
+                    ).value === motor
+                ) {
+
+                    document.getElementById("kp").value = data.kp;
+                    document.getElementById("ki").value = data.ki;
+                    document.getElementById("kd").value = data.kd;
+
+                }
+
+            }
+
+
+            if (
+                data.type ===
+                "pid_state"
+            ) {
+
+                const all = data.all || {};
+
+                for (const key in all) {
+
+                    if (all.hasOwnProperty(key)) {
+
+                        pidMotorCache[key] = all[key];
+
+                    }
+
+                }
+
+                const selected =
+                    document.getElementById(
+                        "pidMotor"
+                    ).value;
+
+                const cached =
+                    pidMotorCache[selected];
+
+                if (cached) {
+
+                    document.getElementById("kp").value = cached.kp;
+                    document.getElementById("ki").value = cached.ki;
+                    document.getElementById("kd").value = cached.kd;
+
+                }
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(
+                error
+            );
+
+        }
+
+    };
+
+}
+
+
+/* ============================================================
+   SEND
+   ============================================================ */
+
+function send(data) {
+
+    if (
+        socket &&
+        socket.readyState ===
+        WebSocket.OPEN
+    ) {
+
+        socket.send(
+            JSON.stringify(data)
+        );
+
+    }
+
+}
+
+
+/* ============================================================
+   SLIDER
+   ============================================================ */
+
+function sliderChanged(
+    motor,
+    value
+) {
+
+    let angle =
+        parseFloat(value);
+
+
+    angle = Math.max(
+        0,
+        Math.min(
+            180,
+            angle
+        )
+    );
+
+
+    /*
+     * Atualiza campo numérico
+     */
+
+    document.getElementById(
+        `target${motor + 1}`
+    ).value =
+        angle.toFixed(1);
+
+
+    /*
+     * Atualiza valor ao lado do slider
+     */
+
+    document.getElementById(
+        `sliderValue${motor + 1}`
+    ).textContent =
+        angle.toFixed(1) + "°";
+
+
+    /*
+     * Envia para Python
+     */
+
+    setTarget(
+        motor,
+        angle
+    );
+
+}
+
+
+/* ============================================================
+   CAMPO NUMÉRICO
+   ============================================================ */
+
+function angleChanged(
+    motor,
+    value
+) {
+
+    let angle =
+        parseFloat(value);
+
+
+    if (isNaN(angle)) {
+
+        angle = 0;
+
+    }
+
+
+    angle = Math.max(
+        0,
+        Math.min(
+            180,
+            angle
+        )
+    );
+
+
+    /*
+     * Atualiza input
+     */
+
+    document.getElementById(
+        `target${motor + 1}`
+    ).value =
+        angle.toFixed(1);
+
+
+    /*
+     * Atualiza slider
+     */
+
+    document.getElementById(
+        `slider${motor + 1}`
+    ).value =
+        angle;
+
+
+    /*
+     * Atualiza texto
+     */
+
+    document.getElementById(
+        `sliderValue${motor + 1}`
+    ).textContent =
+        angle.toFixed(1) + "°";
+
+
+    /*
+     * Envia target
+     */
+
+    setTarget(
+        motor,
+        angle
+    );
+
+}
+
+
+/* ============================================================
+   TARGET
+   ============================================================ */
+
+function setTarget(
+    motor,
+    target
+) {
+
+    send({
+
+        type:
+            "set_target",
+
+        motor:
+            motor,
+
+        target:
+            parseFloat(target)
+
+    });
+
+}
+
+
+/* ============================================================
+   PID
+   ============================================================ */
+
+let pidMotorCache = {
+    "all": { kp: 2.0, ki: 0.0, kd: 0.02 },
+    "0":   { kp: 2.0, ki: 0.0, kd: 0.02 },
+    "1":   { kp: 2.0, ki: 0.0, kd: 0.02 },
+    "2":   { kp: 2.0, ki: 0.0, kd: 0.02 },
+};
+
+
+function onPidMotorChanged() {
+
+    const motor =
+        document.getElementById(
+            "pidMotor"
+        ).value;
+
+    const cached =
+        pidMotorCache[motor];
+
+    if (cached) {
+
+        document.getElementById("kp").value = cached.kp;
+        document.getElementById("ki").value = cached.ki;
+        document.getElementById("kd").value = cached.kd;
+
+    }
+
+}
+
+
+function applyPID() {
+
+    const motor =
+        document.getElementById(
+            "pidMotor"
+        ).value;
+
+    const kp =
+        parseFloat(
+            document.getElementById(
+                "kp"
+            ).value
+        );
+
+
+    const ki =
+        parseFloat(
+            document.getElementById(
+                "ki"
+            ).value
+        );
+
+
+    const kd =
+        parseFloat(
+            document.getElementById(
+                "kd"
+            ).value
+        );
+
+
+    if (
+        isNaN(kp) ||
+        isNaN(ki) ||
+        isNaN(kd)
+    ) {
+
+        alert(
+            "Valores de PID inválidos."
+        );
+
+        return;
+
+    }
+
+
+    pidMotorCache[motor] = { kp, ki, kd };
+
+    if (motor === "all") {
+
+        pidMotorCache["0"] = { kp, ki, kd };
+        pidMotorCache["1"] = { kp, ki, kd };
+        pidMotorCache["2"] = { kp, ki, kd };
+
+    }
+
+
+    send({
+
+        type:
+            "set_pid",
+
+        motor:
+            motor,
+
+        kp:
+            kp,
+
+        ki:
+            ki,
+
+        kd:
+            kd
+
+    });
+
+}
+
+
+/* ============================================================
+   TOGGLE SIMULATION BUTTON
+   ============================================================ */
+
+function syncSimulationButtonState(isRunning) {
+
+    const button =
+        document.getElementById(
+            "simulationButton"
+        );
+
+    if (!button) return;
+
+    if (isRunning) {
+        button.textContent = "STOP";
+        button.classList.remove("primary");
+        button.classList.add("danger");
+        return;
+    }
+
+    button.textContent = "RUN";
+    button.classList.remove("danger");
+    button.classList.add("primary");
+
+}
+
+
+function toggleSimulation() {
+
+    const button =
+        document.getElementById(
+            "simulationButton"
+        );
+
+    if (!button) return;
+
+    const isRunning =
+        button.textContent === "STOP";
+
+    if (isRunning) {
+        stopRobot();
+        return;
+    }
+
+    enablePID();
+
+}
+
+
+/* ============================================================
+   ENABLE SIMULATION
+   ============================================================ */
+
+function enablePID() {
+
+    /*
+     * Começa o gráfico em tempo real.
+     */
+
+    graphRunning = true;
+
+    graphStartTime =
+        performance.now();
+
+    clearGraphs();
+
+
+    /*
+     * Envia comando para Python
+     */
+
+    send({
+
+        type:
+            "enable_pid"
+
+    });
+
+    syncSimulationButtonState(true);
+
+    if (testRecording) {
+        updateTestStatus(
+            "RECORDING",
+            true
+        );
+        return;
+    }
+
+    updateTestStatus(
+        "IDLE",
+        false
+    );
+
+}
+
+
+/* ============================================================
+   STOP
+   ============================================================ */
+
+function stopRobot() {
+
+    if (testProfileActive) {
+        stopTest();
+    }
+
+    /*
+     * O gráfico para SOMENTE aqui.
+     */
+
+    graphRunning = false;
+
+
+    /*
+     * Para o robô.
+     */
+
+    send({
+
+        type:
+            "stop"
+
+    });
+
+    syncSimulationButtonState(false);
+
+    if (testRecording) {
+        updateTestStatus(
+            "RECORDING",
+            true
+        );
+        return;
+    }
+
+    updateTestStatus(
+        "IDLE",
+        false
+    );
+
+}
+
+
+/* ============================================================
+   START TEST
+   ============================================================ */
+
+function evaluateTestProfile(profile, elapsedSeconds) {
+
+    if (profile === "ramp_5s") {
+        return 90 * Math.min(1, elapsedSeconds / 5);
+    }
+
+    if (profile === "sweep_2s") {
+        const cycle = elapsedSeconds % 2;
+        return 90 * (cycle / 2);
+    }
+
+    if (profile === "triangle_6s") {
+        const cycle = elapsedSeconds % 6;
+        if (cycle <= 3) {
+            return 90 * (cycle / 3);
+        }
+        return 90 * (1 - ((cycle - 3) / 3));
+    }
+
+    if (profile === "step_90") {
+        return elapsedSeconds < 1 ? 0 : 90;
+    }
+
+    if (profile === "pulse_3s") {
+        const cycle = elapsedSeconds % 3;
+        if (cycle <= 1.5) {
+            return 90 * (cycle / 1.5);
+        }
+        return 90 * (1 - ((cycle - 1.5) / 1.5));
+    }
+
+    if (profile === "square_4s") {
+        const cycle = elapsedSeconds % 4;
+        return cycle < 2 ? 0 : 180;
+    }
+
+    return 0;
+
+}
+
+
+function updateManualTargetDisplay(motor, value) {
+
+    const safeValue = Math.max(0, Math.min(180, Number(value) || 0));
+
+    const targetInput = document.getElementById(`target${motor + 1}`);
+    const slider = document.getElementById(`slider${motor + 1}`);
+    const label = document.getElementById(`sliderValue${motor + 1}`);
+
+    if (targetInput) {
+        targetInput.value = safeValue.toFixed(1);
+    }
+
+    if (slider) {
+        slider.value = safeValue;
+    }
+
+    if (label) {
+        label.textContent = `${safeValue.toFixed(1)}°`;
+    }
+
+}
+
+
+function disableTargetInputs(disabled) {
+
+    document
+        .querySelectorAll(
+            'input[type="range"][id^="slider"], input[type="number"][id^="target"]'
+        )
+        .forEach((element) => {
+            element.disabled = disabled;
+        });
+
+}
+
+
+function toggleTestAction() {
+
+    if (testProfileActive) {
+        stopTest();
+        return;
+    }
+
+    startTest();
+
+}
+
+
+function startTest() {
+
+    if (!graphRunning) {
+        alert("Start the simulation before running a test profile.");
+        return;
+    }
+
+    if (testProfileActive) {
+        return;
+    }
+
+    const profile =
+        document.getElementById(
+            "testPresetSelect"
+        ).value;
+
+    const motor =
+        Number(
+            document.getElementById(
+                "testMotorSelect"
+            ).value
+        );
+
+    activeTestProfile = profile;
+    activeTestStart = performance.now();
+    testProfileActive = true;
+
+    testData = [];
+    pendingTestExport = false;
+    disableTargetInputs(true);
+
+    send({
+        type: "start_test"
+    });
+
+    send({
+        type: "start_test_profile",
+        motor: motor,
+        profile: profile
+    });
+
+    updateTestStatus("RECORDING", true);
+    setTestActionButtonState(true);
+
+    activeTestTimer = setInterval(() => {
+
+        const elapsed = (performance.now() - activeTestStart) / 1000;
+        const targetValue = evaluateTestProfile(profile, elapsed);
+
+        if (Number.isNaN(targetValue) || !Number.isFinite(targetValue)) {
+            stopTest();
+            return;
+        }
+
+        send({
+            type: "apply_test_target",
+            motor: motor,
+            target: targetValue
+        });
+
+        updateManualTargetDisplay(motor, targetValue);
+
+        if (profile === "step_90" && elapsed >= 2) {
+            stopTest();
+            return;
+        }
+
+        if ((profile === "ramp_5s" && elapsed >= 5) ||
+            (profile === "sweep_2s" && elapsed >= 6) ||
+            (profile === "triangle_6s" && elapsed >= 6) ||
+            (profile === "pulse_3s" && elapsed >= 6) ||
+            (profile === "square_4s" && elapsed >= 8)) {
+            stopTest();
+            return;
+        }
+
+    }, 50);
+
+}
+
+
+/* ============================================================
+   STOP TEST
+   ============================================================ */
+
+function stopTest() {
+
+    if (activeTestTimer) {
+        clearInterval(activeTestTimer);
+        activeTestTimer = null;
+    }
+
+    if (testProfileActive) {
+        send({
+            type: "stop_test_profile"
+        });
+    }
+
+    testProfileActive = false;
+    activeTestProfile = null;
+    disableTargetInputs(false);
+
+    if (testRecording) {
+        send({
+            type: "stop_test"
+        });
+
+        updateTestStatus("READY", false);
+
+        send({
+            type: "get_test_data"
+        });
+
+    } else {
+        updateTestStatus("IDLE", false);
+    }
+
+    setTestActionButtonState(false);
+
+}
+
+
+/* ============================================================
+   FEEDBACK
+   ============================================================ */
+
+function updateFeedback(data) {
+
+    const positions =
+        data.position ||
+        [0, 0, 0];
+
+
+    const targets =
+        data.target ||
+        [0, 0, 0];
+
+
+    const errors =
+        data.error ||
+        [0, 0, 0];
+
+
+    const pwm =
+        data.pwm ||
+        [0, 0, 0];
+
+
+    /* ========================================================
+       TELEMETRIA
+       ======================================================== */
+
+    for (
+        let i = 0;
+        i < 3;
+        i++
+    ) {
+
+        document.getElementById(
+            `pos${i + 1}`
+        ).textContent =
+            positions[i].toFixed(2)
+            + "°";
+
+
+        document.getElementById(
+            `tar${i + 1}`
+        ).textContent =
+            targets[i].toFixed(2)
+            + "°";
+
+
+        document.getElementById(
+            `err${i + 1}`
+        ).textContent =
+            errors[i].toFixed(2)
+            + "°";
+
+
+        document.getElementById(
+            `pwm${i + 1}`
+        ).textContent =
+            Math.round(
+                pwm[i]
+            );
+
+    }
+
+
+    /* ========================================================
+       ATUALIZA SLIDERS E INPUTS
+       ======================================================== */
+
+    for (
+        let i = 0;
+        i < 3;
+        i++
+    ) {
+
+        const targetInput =
+            document.getElementById(
+                `target${i + 1}`
+            );
+
+
+        const slider =
+            document.getElementById(
+                `slider${i + 1}`
+            );
+
+
+        /*
+         * Não sobrescreve enquanto o usuário
+         * estiver digitando.
+         */
+
+        if (
+            document.activeElement !==
+            targetInput
+        ) {
+
+            targetInput.value =
+                targets[i].toFixed(1);
+
+        }
+
+
+        if (
+            document.activeElement !==
+            slider
+        ) {
+
+            slider.value =
+                targets[i];
+
+        }
+
+
+        document.getElementById(
+            `sliderValue${i + 1}`
+        ).textContent =
+            targets[i].toFixed(1)
+            + "°";
+
+    }
+
+
+    /* ========================================================
+       PID
+       ======================================================== */
+
+    /*
+     * A fonte de verdade do PID fica no frontend.
+     * Não ressincronizamos os campos a partir do feedback,
+     * porque isso sobrescreve a entrada atual do usuário.
+     */
+
+
+
+    /* ========================================================
+       GRÁFICO
+       ======================================================== */
+
+    /*
+     * Só adiciona pontos enquanto a simulação estiver ativa.
+     *
+     * Chegar ao alvo NÃO para o gráfico.
+     *
+     * Somente STOP muda graphRunning para false.
+     */
+
+    if (graphRunning) {
+
+        if (
+            graphStartTime === null
+        ) {
+
+            graphStartTime =
+                performance.now();
+
+        }
+
+
+        const now =
+            (
+                performance.now()
+                -
+                graphStartTime
+            ) / 1000;
+
+
+        if (
+            now - lastGraphSampleTime >= 0.04
+        ) {
+
+            lastGraphSampleTime = now;
+
+            timeData.push(
+                now
+            );
+
+
+            for (
+                let i = 0;
+                i < 3;
+                i++
+            ) {
+
+                positionData[i].push(
+                    positions[i]
+                );
+
+
+                targetData[i].push(
+                    targets[i]
+                );
+
+
+                errorData[i].push(
+                    errors[i]
+                );
+
+
+                pwmData[i].push(
+                    pwm[i]
+                );
+
+            }
+
+
+            /*
+             * Mantém somente os últimos pontos.
+             */
+
+            if (
+                timeData.length >
+                MAX_POINTS
+            ) {
+
+                timeData.shift();
+
+
+                for (
+                    let i = 0;
+                    i < 3;
+                    i++
+                ) {
+
+                    positionData[i].shift();
+
+                    targetData[i].shift();
+
+                    errorData[i].shift();
+
+                    pwmData[i].shift();
+
+                }
+
+            }
+
+
+            drawAllCharts();
+
+        }
+
+    }
+
+}
+
+
+/* ============================================================
+   LIMPAR GRÁFICOS
+   ============================================================ */
+
+function clearGraphs() {
+
+    timeData = [];
+
+    lastGraphSampleTime = 0;
+
+
+    positionData = [
+        [],
+        [],
+        []
+    ];
+
+
+    targetData = [
+        [],
+        [],
+        []
+    ];
+
+
+    errorData = [
+        [],
+        [],
+        []
+    ];
+
+
+    pwmData = [
+        [],
+        [],
+        []
+    ];
+
+
+    drawAllCharts();
+
+}
+
+
+/* ============================================================
+   DESENHAR TODOS
+   ============================================================ */
+
+function drawAllCharts() {
+
+    drawChart(
+        "positionChart",
+        positionData,
+        targetData,
+        0,
+        180
+    );
+
+
+    drawChart(
+        "errorChart",
+        errorData,
+        null,
+        -180,
+        180
+    );
+
+
+    drawChart(
+        "pwmChart",
+        pwmData,
+        null,
+        -255,
+        255
+    );
+
+}
+
+
+/* ============================================================
+   DESENHAR GRÁFICO
+   ============================================================ */
+
+function drawChart(
+    canvasId,
+    datasets,
+    secondary,
+    minY,
+    maxY
+) {
+
+    const canvas =
+        document.getElementById(
+            canvasId
+        );
+
+
+    const rect =
+        canvas.getBoundingClientRect();
+
+
+    const dpr =
+        window.devicePixelRatio ||
+        1;
+
+
+    canvas.width =
+        rect.width * dpr;
+
+
+    canvas.height =
+        rect.height * dpr;
+
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    ctx.setTransform(
+        1,
+        0,
+        0,
+        1,
+        0,
+        0
+    );
+
+    ctx.scale(
+        dpr,
+        dpr
+    );
+
+
+    const width =
+        rect.width;
+
+
+    const height =
+        rect.height;
+
+
+    /* ========================================================
+       BACKGROUND
+       ======================================================== */
+
+    ctx.fillStyle =
+        "#0c1016";
+
+
+    ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    /* ========================================================
+       GRID
+       ======================================================== */
+
+    ctx.strokeStyle =
+        "#202933";
+
+
+    ctx.lineWidth = 1;
+
+
+    for (
+        let i = 0;
+        i <= 5;
+        i++
+    ) {
+
+        const y =
+            20 +
+            (
+                (height - 40)
+                / 5
+            ) * i;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            45,
+            y
+        );
+
+
+        ctx.lineTo(
+            width - 10,
+            y
+        );
+
+
+        ctx.stroke();
+
+    }
+
+
+    for (
+        let i = 0;
+        i <= 5;
+        i++
+    ) {
+
+        const x =
+            45 +
+            (
+                (width - 55)
+                / 5
+            ) * i;
+
+
+        ctx.beginPath();
+
+
+        ctx.moveTo(
+            x,
+            10
+        );
+
+
+        ctx.lineTo(
+            x,
+            height - 20
+        );
+
+
+        ctx.stroke();
+
+    }
+
+
+    /* ========================================================
+       EIXO Y
+       ======================================================== */
+
+    ctx.fillStyle =
+        "#687584";
+
+
+    ctx.font =
+        "10px Consolas";
+
+
+    for (
+        let i = 0;
+        i <= 5;
+        i++
+    ) {
+
+        const value =
+            maxY -
+            (
+                (maxY - minY)
+                / 5
+            ) * i;
+
+
+        const y =
+            20 +
+            (
+                (height - 40)
+                / 5
+            ) * i;
+
+
+        ctx.fillText(
+            value.toFixed(0),
+            5,
+            y + 3
+        );
+
+    }
+
+
+    /* ========================================================
+       VERIFICA DADOS
+       ======================================================== */
+
+    if (
+        timeData.length < 2
+    ) {
+
+        return;
+
+    }
+
+
+    /* ========================================================
+       POSIÇÃO X
+       ======================================================== */
+
+    function xPosition(timeValue) {
+
+        const currentTime =
+            timeData.length > 0
+                ? timeData[timeData.length - 1]
+                : 0;
+
+
+        const minTime =
+            Math.max(
+                0,
+                currentTime -
+                GRAPH_TIME_WINDOW
+            );
+
+
+        const t =
+            Math.max(
+                minTime,
+                Math.min(
+                    currentTime,
+                    timeValue
+                )
+            );
+
+
+        return (
+            45 +
+            (
+                (
+                    t - minTime
+                ) /
+                GRAPH_TIME_WINDOW
+            ) *
+            (
+                width - 55
+            )
+        );
+
+    }
+
+
+    /* ========================================================
+       POSIÇÃO Y
+       ======================================================== */
+
+    function yPosition(value) {
+
+        const normalized =
+            (
+                value - minY
+            ) /
+            (
+                maxY - minY
+            );
+
+
+        return (
+            height - 20
+            -
+            normalized *
+            (
+                height - 40
+            )
+        );
+
+    }
+
+
+    /* ========================================================
+       CORES
+       ======================================================== */
+
+    const motorColors = [
+
+        "#f39c4a",
+
+        "#45d6c0",
+
+        "#e5c454"
+
+    ];
+
+
+    /* ========================================================
+       LINHAS
+       ======================================================== */
+
+    for (
+        let motor = 0;
+        motor < 3;
+        motor++
+    ) {
+
+        if (
+            !motorChartEnabled[motor]
+        ) {
+
+            continue;
+
+        }
+
+
+        const data =
+            datasets[motor];
+
+
+        if (
+            data.length < 2
+        ) {
+
+            continue;
+
+        }
+
+
+        /* ====================================================
+           POSIÇÃO
+           ==================================================== */
+
+        ctx.strokeStyle =
+            motorColors[motor];
+
+
+        ctx.lineWidth = 2;
+
+
+        ctx.setLineDash([]);
+
+
+        ctx.beginPath();
+
+
+        for (
+            let i = 0;
+            i < data.length;
+            i++
+        ) {
+
+            const x =
+                        xPosition(
+                            timeData[i]
+                        );
+
+            const y =
+                yPosition(
+                    data[i]
+                );
+
+
+            if (i === 0) {
+
+                ctx.moveTo(
+                    x,
+                    y
+                );
+
+            }
+
+            else {
+
+                ctx.lineTo(
+                    x,
+                    y
+                );
+
+            }
+
+        }
+
+
+        ctx.stroke();
+
+
+        /* ====================================================
+           TARGET
+           ==================================================== */
+
+        if (
+            secondary
+        ) {
+
+            const target =
+                secondary[motor];
+
+
+            if (
+                target.length >= 2
+            ) {
+
+                ctx.strokeStyle =
+                    motorColors[motor];
+
+
+                ctx.lineWidth = 1;
+
+
+                ctx.setLineDash([
+                    5,
+                    4
+                ]);
+
+
+                ctx.beginPath();
+
+
+                for (
+                    let i = 0;
+                    i < target.length;
+                    i++
+                ) {
+
+                    const x =
+                        xPosition(
+                            timeData[i]
+                        );
+
+
+                    const y =
+                        yPosition(
+                            target[i]
+                        );
+
+
+                    if (i === 0) {
+
+                        ctx.moveTo(
+                            x,
+                            y
+                        );
+
+                    }
+
+                    else {
+
+                        ctx.lineTo(
+                            x,
+                            y
+                        );
+
+                    }
+
+                }
+
+
+                ctx.stroke();
+
+
+                ctx.setLineDash([]);
+
+            }
+
+        }
+
+    }
+
+
+    /* ========================================================
+       LEGENDA
+       ======================================================== */
+
+    ctx.font =
+        "10px Consolas";
+
+
+    for (
+        let motor = 0;
+        motor < 3;
+        motor++
+    ) {
+
+        if (
+            !motorChartEnabled[motor]
+        ) {
+
+            continue;
+
+        }
+
+
+        const x =
+            55 +
+            motor * 85;
+
+
+        ctx.fillStyle =
+            motorColors[motor];
+
+
+        ctx.fillRect(
+            x,
+            5,
+            20,
+            3
+        );
+
+
+        ctx.fillText(
+            `M${motor + 1}`,
+            x + 25,
+            9
+        );
+
+    }
+
+}
+
+
+/* ============================================================
+   EXPORT CSV
+   ============================================================ */
+
+function downloadTest() {
+
+    if (
+        !testData ||
+        testData.length === 0
+    ) {
+
+        alert(
+            "Nenhum teste disponível."
+        );
+
+        return;
+
+    }
+
+
+    let csv =
+        "time," +
+        "pos1,target1,error1,pwm1," +
+        "pos2,target2,error2,pwm2," +
+        "pos3,target3,error3,pwm3\n";
+
+
+    for (
+        const row of testData
+    ) {
+
+        csv +=
+            row.time + "," +
+
+            row.position[0] + "," +
+            row.target[0] + "," +
+            row.error[0] + "," +
+            row.pwm[0] + "," +
+
+            row.position[1] + "," +
+            row.target[1] + "," +
+            row.error[1] + "," +
+            row.pwm[1] + "," +
+
+            row.position[2] + "," +
+            row.target[2] + "," +
+            row.error[2] + "," +
+            row.pwm[2] + "\n";
+
+    }
+
+
+    const blob =
+        new Blob(
+            [csv],
+            {
+                type:
+                    "text/csv"
+            }
+        );
+
+
+    const url =
+        URL.createObjectURL(
+            blob
+        );
+
+
+    const a =
+        document.createElement(
+            "a"
+        );
+
+
+    a.href =
+        url;
+
+
+    a.download =
+        "pid_test.csv";
+
+
+    a.click();
+
+
+    URL.revokeObjectURL(
+        url
+    );
+
+}
+
+
+/* ============================================================
+   RESIZE
+   ============================================================ */
+
+window.addEventListener(
+    "resize",
+    drawAllCharts
+);
+
+
+/* ============================================================
+   START
+   ============================================================ */
+
+bindMotorChartToggles();
+
+connect();
+
+drawAllCharts();
+
+</script>
+
+
+</body>
+
+</html>

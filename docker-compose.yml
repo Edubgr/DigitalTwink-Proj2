@@ -1,0 +1,19 @@
+services:
+
+  moveit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: control-arm-twink-moveit
+    working_dir: /ws
+    environment:
+      # true sobe o RViz dentro do container, servido por noVNC em :6080
+      RVIZ: "false"
+      HTTP_PORT: "8081"
+    stdin_open: true
+    tty: true
+    shm_size: "1gb"
+    ports:
+      - "8081:8081"   # ponte HTTP do MoveIt (o backend fala aqui)
+      - "5900:5900"   # VNC
+      - "6080:6080"   # noVNC (RViz)

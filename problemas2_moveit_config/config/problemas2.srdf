@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot name="problemas2_urdf">
+
+  <!--
+    Braço RRR de 3 GDL.
+
+    Só existem três juntas atuadas:
+
+        revbase    (yaw,   contínua)
+        revlink1   (pitch, [0, pi])
+        relink2    (pitch, [-1.396263, 1.745329])
+
+    "griprigid" é fixa, então não há end effector atuado e não há
+    grupo de garra. Com 3 GDL só é possível comandar POSIÇÃO do TCP
+    (x, y, z) — a orientação é consequência. Por isso o kinematics.yaml
+    usa position_only_ik.
+  -->
+
+  <!--
+    A ponta da cadeia é "tool0", não "gripper_1": o frame do
+    gripper_1 fica a 370 mm da garra real (ver comentário no URDF),
+    então usá-lo como alvo de IK resolveria um ponto fantasma.
+  -->
+  <group name="arm">
+    <chain base_link="base_link" tip_link="tool0"/>
+  </group>
+
+  <group_state name="home" group="arm">
+    <joint name="revbase" value="0"/>
+    <joint name="revlink1" value="0"/>
+    <joint name="relink2" value="0"/>
+  </group_state>
+
+  <group_state name="ready" group="arm">
+    <joint name="revbase" value="0"/>
+    <joint name="revlink1" value="1.5708"/>
+    <joint name="relink2" value="0"/>
+  </group_state>
+
+  <virtual_joint name="world_joint" type="fixed" parent_frame="world" child_link="base_link"/>
+
+  <!--
+    Pares adjacentes: nunca colidem porque compartilham junta.
+    Os demais pares continuam sendo verificados pelo MoveIt.
+  -->
+  <disable_collisions link1="base_link" link2="link1_1" reason="Adjacent"/>
+  <disable_collisions link1="link1_1" link2="link2_1" reason="Adjacent"/>
+  <disable_collisions link1="link2_1" link2="link3_1" reason="Adjacent"/>
+  <disable_collisions link1="link3_1" link2="gripper_1" reason="Adjacent"/>
+
+</robot>

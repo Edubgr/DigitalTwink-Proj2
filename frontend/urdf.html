@@ -1,0 +1,3383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URDF Viewer</title>
+    <style>
+        :root {
+            --bg: #0a0f14;
+            --panel: #111821;
+            --line: #263241;
+            --text: #e7edf6;
+            --muted: #8b97a8;
+            --accent: #59d6c9;
+            --accent-2: #7aa7ff;
+            --warn: #f5b66d;
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+        }
+
+        * { box-sizing: border-box; }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at top left, rgba(89, 214, 201, 0.12), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(122, 167, 255, 0.12), transparent 28%),
+                var(--bg);
+            color: var(--text);
+            font-family: Consolas, "Courier New", monospace;
+            overflow: hidden;
+        }
+
+        a { color: inherit; text-decoration: none; }
+
+        .shell {
+            display: grid;
+            grid-template-rows: 64px 1fr;
+            height: 100%;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(10, 15, 20, 0.88);
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 2px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            padding: 0 12px;
+            border: 1px solid rgba(89, 214, 201, 0.35);
+            border-radius: 999px;
+            color: var(--accent);
+            font-size: 11px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            background: rgba(89, 214, 201, 0.06);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5b6674;
+        }
+
+        .status-dot.connected {
+            background: var(--accent);
+            box-shadow: 0 0 10px rgba(89, 214, 201, 0.65);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(420px, 1.45fr) minmax(360px, 0.85fr);
+            gap: 14px;
+            padding: 14px;
+            min-height: 0;
+        }
+
+        .panel {
+            background: linear-gradient(180deg, rgba(17, 24, 33, 0.98), rgba(14, 20, 28, 0.98));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .panel-title {
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .panel-subtitle {
+            font-size: 12px;
+            color: #c8d1de;
+            margin-top: 4px;
+        }
+
+        .viewer {
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            min-height: 0;
+        }
+
+        .viewer-stage {
+            position: relative;
+            min-height: 0;
+            background:
+                linear-gradient(transparent 31px, rgba(255,255,255,0.03) 32px),
+                linear-gradient(90deg, transparent 31px, rgba(255,255,255,0.03) 32px),
+                radial-gradient(circle at center, rgba(255,255,255,0.02), transparent 52%);
+            background-size: 32px 32px, 32px 32px, cover;
+        }
+
+        #canvas3d {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            padding: 12px 16px 16px;
+            border-top: 1px solid var(--line);
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .swatch.target { background: var(--accent-2); }
+        .swatch.measured { background: var(--warn); }
+        .swatch.base { background: #8593a5; }
+
+        /* A lista de juntas e quem cede quando falta altura: as poses
+           tem um minimo garantido, e o painel em si nunca rola. */
+        .controls {
+            display: grid;
+            grid-template-rows: auto minmax(0, auto) auto minmax(150px, 1fr);
+            min-height: 0;
+        }
+
+        .control-list {
+            padding: 12px 14px 0;
+            display: grid;
+            gap: 8px;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .joint-card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.02);
+            padding: 10px 12px;
+        }
+
+        .joint-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 7px;
+        }
+
+        .joint-name {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #dfe6f0;
+        }
+
+        .joint-readout {
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        /* Lado a lado em vez de empilhado: e o que tirava a altura e
+           forcava o scroll na coluna de juntas. */
+        .joint-meta {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 7px;
+            font-size: 11px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .joint-meta strong {
+            color: #dfe6f0;
+            font-weight: 400;
+        }
+
+        /* ============================================================
+           POSES
+           ============================================================ */
+
+        .poses-box {
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            min-height: 0;
+            margin: 0 14px 14px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* A lista rola sozinha; o painel continua sem scroll. */
+        .pose-list {
+            margin-top: 10px;
+            min-height: 60px;
+            overflow: auto;
+            display: grid;
+            gap: 6px;
+            align-content: start;
+        }
+
+        .pose-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 8px;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: rgba(255,255,255,0.02);
+            font-size: 11px;
+        }
+
+        .pose-row.fora {
+            border-color: rgba(255, 107, 138, 0.45);
+        }
+
+        .pose-name {
+            color: #dfe6f0;
+            min-width: 58px;
+        }
+
+        .pose-q {
+            color: var(--muted);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .pose-warn {
+            color: #ff6b8a;
+            font-size: 10px;
+        }
+
+        .pose-acts {
+            display: flex;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .pose-act {
+            appearance: none;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: rgba(255,255,255,0.02);
+            color: #cdd5df;
+            font-family: inherit;
+            font-size: 11px;
+        }
+
+        .pose-act:hover { border-color: rgba(89, 214, 201, 0.5); color: var(--accent); }
+        .pose-act.del:hover { border-color: rgba(255, 107, 138, 0.5); color: #ff6b8a; }
+        .pose-act:disabled { opacity: 0.35; cursor: default; }
+
+        .pose-empty {
+            font-size: 10px;
+            color: var(--muted);
+            line-height: 1.5;
+            padding: 4px 2px;
+        }
+
+        /* ============================================================
+           MODO: POSIÇÃO x LIMITES
+           ============================================================ */
+
+        .head-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .seg {
+            display: inline-flex;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .seg-btn {
+            appearance: none;
+            cursor: pointer;
+            border: 0;
+            padding: 3px 10px;
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            background: transparent;
+        }
+
+        .seg-btn:hover { color: #dfe6f0; }
+
+        .seg-btn.active {
+            color: #0a0f14;
+            background: var(--accent);
+        }
+
+        .seg-btn.reset {
+            display: none;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            margin-right: 8px;
+            color: var(--warn);
+        }
+
+        .seg-btn.reset:hover {
+            border-color: rgba(245, 182, 109, 0.55);
+        }
+
+        /* Cada card tem duas faces; o modo decide qual aparece. */
+        .joint-lim { display: none; }
+
+        .controls.limites .joint-pos { display: none; }
+        .controls.limites .joint-lim { display: block; }
+        .controls.limites .seg-btn.reset { display: inline-block; }
+        .controls.limites #pwmWrap { display: none; }
+
+        .lim-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Mínimo em âmbar, máximo em teal: a mesma leitura de cor da
+           área de trabalho no 3D. */
+        #limMin0, #limMin1, #limMin2 {
+            background: linear-gradient(90deg, rgba(245,182,109,0.45), rgba(245,182,109,0.15));
+        }
+
+        #limMin0::-webkit-slider-thumb,
+        #limMin1::-webkit-slider-thumb,
+        #limMin2::-webkit-slider-thumb {
+            border-color: var(--warn);
+            box-shadow: 0 0 0 4px rgba(245, 182, 109, 0.18);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            appearance: none;
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(89, 214, 201, 0.25), rgba(122, 167, 255, 0.35));
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #f3f7fb;
+            border: 3px solid var(--accent);
+            box-shadow: 0 0 0 4px rgba(89, 214, 201, 0.18);
+            cursor: pointer;
+        }
+
+
+
+
+
+        .small-note {
+            padding: 0 14px 14px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+
+
+        /* ============================================================
+           MOVEIT
+           ============================================================ */
+
+        .moveit-box {
+            align-self: start;
+            margin: 0 14px 14px;
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .moveit-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .mv-pill {
+            font-size: 11px;
+            letter-spacing: 0.04em;
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            color: var(--muted);
+        }
+
+        .mv-pill.idle     { color: #9fb0c4; }
+        .mv-pill.planning { color: #f5b66d; border-color: #f5b66d55; }
+        .mv-pill.ok       { color: #59d6c9; border-color: #59d6c955; }
+        .mv-pill.fail     { color: #ff6b8a; border-color: #ff6b8a55; }
+
+        .mv-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .mv-cell {
+            padding: 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .mv-cell span {
+            display: block;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            margin-bottom: 3px;
+        }
+
+        .mv-cell strong {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e7edf6;
+        }
+
+        .mv-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .mv-btn {
+            appearance: none;
+            cursor: pointer;
+            min-height: 32px;
+            padding: 0 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            color: #dfe6f0;
+            background: rgba(255,255,255,0.02);
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .mv-btn:hover { background: rgba(255,255,255,0.06); }
+        .mv-btn:disabled { opacity: 0.35; cursor: default; }
+        .mv-btn:disabled:hover { background: rgba(255,255,255,0.02); }
+
+        .mv-btn.primary {
+            border-color: rgba(122, 167, 255, 0.55);
+            color: #bcd2ff;
+            background: rgba(122, 167, 255, 0.10);
+        }
+
+        .mv-btn.go {
+            border-color: rgba(89, 214, 201, 0.55);
+            color: #8ff0e5;
+            background: rgba(89, 214, 201, 0.10);
+        }
+
+        .mv-btn.active {
+            border-color: rgba(245, 182, 109, 0.65);
+            color: #ffd9a8;
+            background: rgba(245, 182, 109, 0.14);
+        }
+
+        .mv-btn.run-btn {
+            border-color: rgba(89, 214, 201, 0.45);
+            color: #dfe6f0;
+            background: rgba(89, 214, 201, 0.08);
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            transition: all 0.2s ease;
+            margin-left: auto;
+        }
+
+        .mv-btn.run-btn:hover {
+            border-color: rgba(89, 214, 201, 0.85);
+            background: rgba(89, 214, 201, 0.18);
+            color: #ffffff;
+        }
+
+        .mv-btn.run-btn.active {
+            border-color: #45d6c0;
+            color: #0a0f14;
+            background: #45d6c0;
+            box-shadow: 0 0 14px rgba(69, 214, 192, 0.7);
+        }
+
+        .mv-views {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--line);
+        }
+
+        .mv-hint {
+            font-size: 10px;
+            color: var(--muted);
+            margin-left: auto;
+        }
+
+        .mv-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: auto;
+        }
+
+        .mv-error {
+            margin-top: 8px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #ff6b8a;
+            word-break: break-word;
+        }
+
+
+        /* ============================================================
+           SOURCE TOGGLE
+           ============================================================ */
+
+        .source-toggle {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .source-toggle .source-label {
+            grid-column: 1 / -1;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .source-btn {
+            min-height: 34px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.02);
+            color: #cdd5df;
+            font-family: inherit;
+            font-size: 11px;
+            letter-spacing: 1.2px;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+
+        .source-btn:hover { background: rgba(255, 255, 255, 0.05); }
+
+        .source-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(89, 214, 201, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(89, 214, 201, 0.25);
+        }
+
+        .source-hint {
+            grid-column: 1 / -1;
+            font-size: 11px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        /* ============================================================
+           RIGHT COLUMN + SAVED POSITIONS
+           ============================================================ */
+
+        .right-col {
+            display: grid;
+            grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.9fr);
+            gap: 14px;
+            min-height: 0;
+        }
+
+        .saved-panel {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            min-height: 0;
+        }
+
+        .saved-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            min-height: 30px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.02);
+            color: #dfe6f0;
+            font-family: inherit;
+            font-size: 10px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .action-btn.accent {
+            border-color: rgba(89, 214, 201, 0.45);
+            color: var(--accent);
+        }
+
+        .action-btn.danger {
+            border-color: rgba(240, 120, 120, 0.4);
+            color: #f08a8a;
+        }
+
+        .action-btn:hover { background: rgba(255, 255, 255, 0.06); }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .saved-list {
+            padding: 12px 14px 14px;
+            overflow: auto;
+            display: grid;
+            gap: 8px;
+            align-content: start;
+            min-height: 0;
+        }
+
+        .saved-empty {
+            color: var(--muted);
+            font-size: 12px;
+            padding: 8px 2px;
+        }
+
+        .saved-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .saved-info {
+            display: grid;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .saved-name {
+            font-size: 11px;
+            letter-spacing: 1.4px;
+            color: #dfe6f0;
+            text-transform: uppercase;
+        }
+
+        .saved-angles {
+            font-size: 12px;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        .saved-time {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .saved-row-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.02);
+            color: #cdd5df;
+            cursor: pointer;
+        }
+
+        .icon-btn.apply:hover {
+            border-color: rgba(89, 214, 201, 0.5);
+            color: var(--accent);
+        }
+
+        .icon-btn.delete:hover {
+            border-color: rgba(240, 120, 120, 0.5);
+            color: #f08a8a;
+        }
+
+        @media (max-width: 1100px) {
+            body { overflow: auto; }
+            .shell { grid-template-rows: auto 1fr; height: auto; }
+            .layout { grid-template-columns: 1fr; }
+            .viewer-stage { min-height: 360px; }
+
+            /* Em coluna unica nao ha altura para as quatro secoes.
+               Elas crescem e a pagina rola, em vez de espremer a lista
+               de juntas ate 12px. */
+            .controls { grid-template-rows: auto auto auto auto; }
+            .control-list { overflow: visible; }
+            .pose-list { max-height: 260px; }
+        }
+
+        @media (max-width: 720px) {
+            header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
+            .header-left { width: 100%; justify-content: space-between; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <header>
+            <div class="header-left">
+                <h1>URDF VIEWER</h1>
+                <a class="nav-link" href="/">DASHBOARD</a>
+            </div>
+            <div class="status">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusText">DISCONNECTED</span>
+            </div>
+        </header>
+
+        <main class="layout">
+            <section class="panel viewer">
+                <div class="panel-head">
+                    <div>
+                        <div class="panel-title">VISUALIZAÇÃO</div>
+                        <div class="panel-subtitle">Arraste a esfera rosa (TCP) para escolher o alvo</div>
+                    </div>
+                </div>
+
+                <div class="viewer-stage">
+                    <canvas id="canvas3d"></canvas>
+                </div>
+
+                <div class="legend">
+                    <span><i class="swatch" style="background:#ff5da2"></i>TCP</span>
+                    <span><i class="swatch" style="background:#7aa7ff"></i>Alvo / fantasma</span>
+                    <span><i class="swatch" style="background:#f5b66d"></i>Trajetória</span>
+                    <span><i class="swatch" style="background:#59d6c9"></i>Alcance</span>
+                </div>
+            </section>
+
+            <section class="panel controls">
+                <div class="panel-head">
+                    <div class="head-left">
+                        <div class="panel-title">JUNTAS</div>
+                        <div class="seg" id="modeToggle">
+                            <button class="seg-btn active" data-mode="posicao" type="button">posição</button>
+                            <button class="seg-btn" data-mode="limites" type="button">limites</button>
+                        </div>
+                    </div>
+                    <div class="panel-title">
+                        <button class="seg-btn reset" id="limReset" type="button" title="restaurar limites do URDF">↺ URDF</button>
+                        <span id="pwmWrap">PWM <span id="pwmMetric">--</span></span>
+                    </div>
+                </div>
+
+                <div class="control-list">
+                    <div class="joint-card">
+                        <div class="joint-card-head">
+                            <div class="joint-name">revbase</div>
+                            <div class="joint-readout"><span id="targetLabel0">0.0</span>°</div>
+                        </div>
+
+                        <div class="joint-pos">
+                            <input id="slider0" type="range" min="-90" max="90" step="1" value="0">
+                            <div class="joint-meta">
+                                <span id="limitLabel0">-180° … 180°</span>
+                                <span>medido <strong id="measuredValue0">--</strong></span>
+                                <span>erro <strong id="errorValue0">--</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="joint-lim">
+                            <div class="lim-row">
+                                <input id="limMin0" type="range" min="-180" max="180" step="1" value="-90">
+                                <input id="limMax0" type="range" min="-180" max="180" step="1" value="90">
+                            </div>
+                            <div class="joint-meta">
+                                <span>mín <strong id="limMinLabel0">-180°</strong></span>
+                                <span>máx <strong id="limMaxLabel0">180°</strong></span>
+                                <span>faixa <strong id="limSpan0">--</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="joint-card">
+                        <div class="joint-card-head">
+                            <div class="joint-name">revlink1</div>
+                            <div class="joint-readout"><span id="targetLabel1">0.0</span>°</div>
+                        </div>
+
+                        <div class="joint-pos">
+                            <input id="slider1" type="range" min="0" max="180" step="1" value="0">
+                            <div class="joint-meta">
+                                <span id="limitLabel1">0° … 180°</span>
+                                <span>medido <strong id="measuredValue1">--</strong></span>
+                                <span>erro <strong id="errorValue1">--</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="joint-lim">
+                            <div class="lim-row">
+                                <input id="limMin1" type="range" min="-180" max="180" step="1" value="0">
+                                <input id="limMax1" type="range" min="-180" max="180" step="1" value="180">
+                            </div>
+                            <div class="joint-meta">
+                                <span>mín <strong id="limMinLabel1">0°</strong></span>
+                                <span>máx <strong id="limMaxLabel1">180°</strong></span>
+                                <span>faixa <strong id="limSpan1">--</strong></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="joint-card">
+                        <div class="joint-card-head">
+                            <div class="joint-name">relink2</div>
+                            <div class="joint-readout"><span id="targetLabel2">0.0</span>°</div>
+                        </div>
+
+                        <div class="joint-pos">
+                            <input id="slider2" type="range" min="-80" max="100" step="1" value="0">
+                            <div class="joint-meta">
+                                <span id="limitLabel2">-80° … 100°</span>
+                                <span>medido <strong id="measuredValue2">--</strong></span>
+                                <span>erro <strong id="errorValue2">--</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="joint-lim">
+                            <div class="lim-row">
+                                <input id="limMin2" type="range" min="-180" max="180" step="1" value="-80">
+                                <input id="limMax2" type="range" min="-180" max="180" step="1" value="100">
+                            </div>
+                            <div class="joint-meta">
+                                <span>mín <strong id="limMinLabel2">-80°</strong></span>
+                                <span>máx <strong id="limMaxLabel2">100°</strong></span>
+                                <span>faixa <strong id="limSpan2">--</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="moveit-box">
+                    <div class="moveit-head">
+                        <div class="panel-title">MOVEIT</div>
+                        <div class="mv-pill idle" id="mvStatus">offline</div>
+                    </div>
+
+                    <div class="mv-grid">
+                        <div class="mv-cell">
+                            <span>PLANNING</span>
+                            <strong id="mvTime">--</strong>
+                        </div>
+                        <div class="mv-cell">
+                            <span>PONTOS</span>
+                            <strong id="mvPoints">--</strong>
+                        </div>
+                        <div class="mv-cell">
+                            <span>DURAÇÃO</span>
+                            <strong id="mvDuration">--</strong>
+                        </div>
+                    </div>
+
+                    <div class="mv-actions">
+                        <button class="mv-btn primary" id="mvPlan" type="button">Planejar</button>
+                        <button class="mv-btn go" id="mvExecute" type="button" disabled>Executar</button>
+                        <button class="mv-btn" id="mvHome" type="button">Home</button>
+                        <button class="mv-btn run-btn" id="btnRun" type="button" title="Ativar espelhamento e PID no robô real">▶ RUN</button>
+                    </div>
+
+                    <div class="mv-actions mv-views">
+                        <button class="mv-btn" id="mvWorkspace" type="button">Área de trabalho</button>
+                        <button class="mv-btn" id="mvTrail" type="button">Trajetória</button>
+                        <span class="mv-hint" id="mvViewHint"></span>
+                    </div>
+
+                    <div class="mv-error" id="mvError"></div>
+                </div>
+
+                <div class="poses-box">
+                    <div class="moveit-head">
+                        <div class="panel-title">POSES</div>
+                        <div class="mv-pill idle" id="poseCount">nenhuma</div>
+                    </div>
+
+                    <div class="mv-actions">
+                        <button class="mv-btn primary" id="poseSave" type="button">Salvar pose</button>
+                        <button class="mv-btn go" id="poseRunAll" type="button" disabled>Executar sequência</button>
+                        <button class="mv-btn" id="poseClear" type="button" disabled>Limpar</button>
+                    </div>
+
+                    <div class="pose-list" id="poseList"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ------------------------------------------------------------
+        // O gêmeo virtual vive em RADIANOS no frame do URDF.
+        //
+        // Esta é a fonte da verdade: o MoveIt planeja nestes valores e
+        // o three.js desenha a partir deles. Os graus 0..180 que o
+        // ESP32 espera são outra coisa e dependem de calibração — ver
+        // toRealDegrees().
+        // ------------------------------------------------------------
+
+        const JOINT_NAMES = ['revbase', 'revlink1', 'relink2'];
+
+        // Limites do URDF: o que o hardware permite. São o teto — os
+        // limites operacionais editáveis na interface são sempre um
+        // subconjunto destes.
+        const JOINT_LIMITS = [
+            [-Math.PI, Math.PI],
+            [-Math.PI, Math.PI],
+            [-Math.PI, Math.PI]
+        ];
+
+        // A janela operacional pode ficar em qualquer lugar do círculo,
+        // mas não pode ser mais larga que isto.
+        const MAX_SPAN = Math.PI;
+
+        // Padrão: as faixas originais do mecanismo, que já tinham
+        // exatamente 180° de largura em revlink1 e relink2.
+        const DEFAULT_LIMITS = [
+            [-Math.PI / 2, Math.PI / 2],
+            [0.0, 3.141593],
+            [-1.396263, 1.745329]
+        ];
+
+        const state = {
+            socket: null,
+            connected: false,
+            q: [0, 0, 0],
+            robot: false,
+            measured: [0, 0, 0],
+            errors: [0, 0, 0],
+            pwm: [0, 0, 0],
+            planning: false,
+            playing: false,
+            sendReal: false,
+            runActive: false,
+            plan: null,
+            goal: null,
+            goalQ: [0, 0, 0],
+            goalSeed: null,
+            commandedQ: null,
+            showWorkspace: false,
+            showTrail: false,
+
+            // 'posicao' = sliders comandam o alvo
+            // 'limites' = sliders editam a faixa de cada junta
+            mode: 'posicao',
+
+            // Limites operacionais, sempre dentro dos do URDF.
+            limits: DEFAULT_LIMITS.map((pair) => pair.slice())
+        };
+
+        const sliders = [
+            document.getElementById('slider0'),
+            document.getElementById('slider1'),
+            document.getElementById('slider2')
+        ];
+
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const pwmMetric = document.getElementById('pwmMetric');
+        const canvas = document.getElementById('canvas3d');
+
+        const targetLabelIds = ['targetLabel0', 'targetLabel1', 'targetLabel2'];
+        const measuredValueIds = ['measuredValue0', 'measuredValue1', 'measuredValue2'];
+        const errorValueIds = ['errorValue0', 'errorValue1', 'errorValue2'];
+
+        const loader = new STLLoader();
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0f14);
+        // O braço tem ~0.26 m de raio e 0.36 m de altura, então a
+        // câmera precisa ficar perto — senão o TCP some e não dá para
+        // arrastar.
+        scene.fog = new THREE.Fog(0x0a0f14, 1.2, 4.0);
+
+        const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 100);
+        camera.position.set(0.42, 0.34, 0.52);
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: true,
+            alpha: true
+        });
+        renderer.setPixelRatio(window.devicePixelRatio || 1);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.12, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.maxDistance = 2.5;
+        controls.minDistance = 0.15;
+        controls.maxPolarAngle = Math.PI * 0.49;
+
+        const hemi = new THREE.HemisphereLight(0xe8f2ff, 0x101826, 1.8);
+        scene.add(hemi);
+
+        const key = new THREE.DirectionalLight(0xffffff, 2.0);
+        key.position.set(3, 4, 2);
+        scene.add(key);
+
+        const rim = new THREE.DirectionalLight(0x59d6c9, 1.1);
+        rim.position.set(-2, 1.5, -2);
+        scene.add(rim);
+
+        const grid = new THREE.GridHelper(1.2, 24, 0x2a394a, 0x18222d);
+        grid.position.y = -0.001;
+        scene.add(grid);
+
+        const axis = new THREE.AxesHelper(0.12);
+        axis.position.set(-0.32, 0.01, -0.32);
+        scene.add(axis);
+
+        const armRoot = new THREE.Group();
+        armRoot.rotation.x = -Math.PI / 2;
+        scene.add(armRoot);
+
+        // Robô fantasma: mostra o que o plano FARIA, sem mexer no
+        // braço real nem no robô físico.
+        const ghostRoot = new THREE.Group();
+        ghostRoot.rotation.x = -Math.PI / 2;
+        ghostRoot.visible = false;
+        scene.add(ghostRoot);
+
+        let tcpHandle = null;
+        const ghostJointGroups = [];
+
+        const jointDefs = [
+            { origin: [-0.0005, 0.0, 0.0577], axis: 'z' },
+            { origin: [0.000624, -0.012, 0.043735], axis: 'y' },
+            { origin: [-0.146501, 0.0, 0.018348], axis: '-y' }
+        ];
+
+        const meshDefs = [
+            { url: '/assets/meshes/base_link.stl', color: 0x7f8b98, scale: 0.001, position: [0, 0, 0] },
+            { url: '/assets/meshes/link1_1.stl', color: 0x59d6c9, scale: 0.001, position: [0.0005, 0, -0.0577] },
+            { url: '/assets/meshes/link2_1.stl', color: 0x7aa7ff, scale: 0.001, position: [-0.000124, 0.012, -0.101435] },
+            { url: '/assets/meshes/link3_1.stl', color: 0xf5b66d, scale: 0.001, position: [0.146377, 0.012, -0.119783] },
+            { url: '/assets/meshes/gripper_1.stl', color: 0xe7edf6, scale: 0.001, position: [-0.031219, -0.034603, -0.117766] }
+        ];
+
+        const jointGroups = [];
+
+        function degreesToRadians(value) {
+            return value * Math.PI / 180;
+        }
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function round(value) {
+            return Number.parseFloat(value).toFixed(1);
+        }
+
+        function createMaterial(color) {
+            return new THREE.MeshStandardMaterial({
+                color,
+                metalness: 0.3,
+                roughness: 0.6
+            });
+        }
+
+        // Material do robô fantasma: translúcido e de cor única, para
+        // não ser confundido com o braço real.
+        function createGhostMaterial() {
+            return new THREE.MeshStandardMaterial({
+                color: 0x7aa7ff,
+                emissive: 0x2c4a7a,
+                emissiveIntensity: 0.6,
+                transparent: true,
+                opacity: 0.32,
+                depthWrite: false,
+                roughness: 0.5
+            });
+        }
+
+        function addMesh(parent, def, ghost) {
+            const material = ghost ? createGhostMaterial() : createMaterial(def.color);
+
+            loader.load(
+                def.url,
+                (geometry) => {
+                    geometry.computeVertexNormals();
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.scale.set(def.scale, def.scale, def.scale);
+                    mesh.position.set(def.position[0], def.position[1], def.position[2]);
+                    if (ghost) {
+                        mesh.renderOrder = 2;
+                    }
+                    parent.add(mesh);
+                },
+                undefined,
+                (err) => {
+                    console.warn('Falha ao carregar STL, usando fallback:', def.url, err);
+                    const fallback = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.06, 0.06, 0.06),
+                        material
+                    );
+                    fallback.position.set(def.position[0], def.position[1], def.position[2]);
+                    parent.add(fallback);
+                }
+            );
+        }
+
+        function createJointGroup(origin, axis, radians) {
+            const group = new THREE.Group();
+            group.position.set(origin[0], origin[1], origin[2]);
+
+            if (axis === 'z') {
+                group.rotation.z = radians;
+            } else if (axis === 'y') {
+                group.rotation.y = radians;
+            } else if (axis === '-y') {
+                group.rotation.y = -radians;
+            }
+
+            return group;
+        }
+
+        // Offset do link "tool0" no URDF: a origem do link gripper_1
+        // fica a 370 mm da garra real, então o TCP precisa deste
+        // deslocamento para cair na ponta.
+        const TOOL0_OFFSET = [-0.354781, -0.063102, -0.082091];
+
+        // Monta uma cópia do braço dentro de "root". Usado duas vezes:
+        // uma para o braço real e outra para o fantasma do plano.
+        function buildArmInto(root, q, ghost) {
+            root.clear();
+
+            const joints = [];
+
+            const base = new THREE.Group();
+            root.add(base);
+            addMesh(base, meshDefs[0], ghost);
+
+            const joint1 = createJointGroup(jointDefs[0].origin, jointDefs[0].axis, q[0]);
+            base.add(joint1);
+            joints.push(joint1);
+
+            const link1 = new THREE.Group();
+            joint1.add(link1);
+            addMesh(link1, meshDefs[1], ghost);
+
+            const joint2 = createJointGroup(jointDefs[1].origin, jointDefs[1].axis, q[1]);
+            link1.add(joint2);
+            joints.push(joint2);
+
+            const link2 = new THREE.Group();
+            joint2.add(link2);
+            addMesh(link2, meshDefs[2], ghost);
+
+            const joint3 = createJointGroup(jointDefs[2].origin, jointDefs[2].axis, q[2]);
+            link2.add(joint3);
+            joints.push(joint3);
+
+            const link3 = new THREE.Group();
+            joint3.add(link3);
+            addMesh(link3, meshDefs[3], ghost);
+
+            const grip = new THREE.Group();
+            grip.position.set(0.177596, 0.046603, -0.002017);
+            link3.add(grip);
+            addMesh(grip, meshDefs[4], ghost);
+
+            const tcp = new THREE.Mesh(
+                new THREE.SphereGeometry(ghost ? 0.010 : 0.012, 16, 16),
+                new THREE.MeshStandardMaterial({
+                    color: ghost ? 0x7aa7ff : 0xff5da2,
+                    emissive: ghost ? 0x7aa7ff : 0xff5da2,
+                    emissiveIntensity: 0.5,
+                    roughness: 0.3,
+                    transparent: Boolean(ghost),
+                    opacity: ghost ? 0.55 : 1.0
+                })
+            );
+            tcp.position.set(TOOL0_OFFSET[0], TOOL0_OFFSET[1], TOOL0_OFFSET[2]);
+            grip.add(tcp);
+
+            return { joints, tcp };
+        }
+
+        function buildArm() {
+            const real = buildArmInto(armRoot, state.q, false);
+            jointGroups.length = 0;
+            real.joints.forEach((group) => jointGroups.push(group));
+            tcpHandle = real.tcp;
+
+            const preview = buildArmInto(ghostRoot, state.q, true);
+            ghostJointGroups.length = 0;
+            preview.joints.forEach((group) => ghostJointGroups.push(group));
+            ghostRoot.visible = false;
+        }
+
+        const jointEulerProp = ['z', 'y', 'y'];
+        const jointEulerSign = [1, 1, -1];
+
+        // ------------------------------------------------------------
+        // Desenho: radianos do URDF -> rotações do three.js
+        // ------------------------------------------------------------
+
+        function renderJoints() {
+            if (!jointGroups.length) {
+                return;
+            }
+
+            for (let i = 0; i < 3; i += 1) {
+                jointGroups[i].rotation[jointEulerProp[i]] = jointEulerSign[i] * state.q[i];
+            }
+        }
+
+        // Comandos respeitam os limites operacionais, não os do URDF.
+        function clampJoint(index, radians) {
+            const [low, high] = state.limits[index];
+            return clamp(radians, low, high);
+        }
+
+        function radToDeg(radians) {
+            return radians * 180 / Math.PI;
+        }
+
+        // revbase é uma junta CONTÍNUA: o OMPL pode devolver ângulos
+        // fora de ±180° (ex.: 233°). Fisicamente é a mesma pose, mas
+        // vazaria para os sliders e para a conversão do robô real.
+        function wrapAngle(radians) {
+            let angle = radians;
+            while (angle > Math.PI) { angle -= 2 * Math.PI; }
+            while (angle < -Math.PI) { angle += 2 * Math.PI; }
+            return angle;
+        }
+
+        const CONTINUOUS = [true, false, false];
+
+        function displayAngle(index, radians) {
+            return CONTINUOUS[index] ? wrapAngle(radians) : radians;
+        }
+
+        function syncSlidersFromGoal() {
+            for (let i = 0; i < 3; i += 1) {
+                const degrees = radToDeg(displayAngle(i, state.goalQ[i]));
+                sliders[i].value = String(degrees);
+                document.getElementById(targetLabelIds[i]).textContent = round(degrees);
+            }
+        }
+
+        function syncSlidersFromState() {
+            for (let i = 0; i < 3; i += 1) {
+                const degrees = radToDeg(displayAngle(i, state.q[i]));
+                sliders[i].value = String(degrees);
+                document.getElementById(targetLabelIds[i]).textContent = round(degrees);
+            }
+        }
+
+        // ------------------------------------------------------------
+        // Alvo do TCP (esfera fantasma) — vive no frame do URDF,
+        // porque armRoot é exatamente o frame base_link.
+        // ------------------------------------------------------------
+
+        let ghostTarget = null;
+
+        function ensureGhost() {
+            if (ghostTarget) {
+                return;
+            }
+
+            ghostTarget = new THREE.Mesh(
+                new THREE.SphereGeometry(0.016, 20, 20),
+                new THREE.MeshBasicMaterial({
+                    color: 0x7aa7ff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.85
+                })
+            );
+            ghostTarget.visible = false;
+            armRoot.add(ghostTarget);
+        }
+
+        // ------------------------------------------------------------
+        // Sonda de cinemática direta.
+        //
+        // Cadeia de Groups sem malhas, fora da cena: serve para saber
+        // onde o tool0 cai em qualquer configuração sem mexer no braço
+        // desenhado nem no fantasma.
+        // ------------------------------------------------------------
+
+        const fkProbe = new THREE.Group();
+        const fkJoints = [];
+        let fkTip = null;
+
+        function buildFkProbe() {
+            const j1 = createJointGroup(jointDefs[0].origin, jointDefs[0].axis, 0);
+            const j2 = createJointGroup(jointDefs[1].origin, jointDefs[1].axis, 0);
+            const j3 = createJointGroup(jointDefs[2].origin, jointDefs[2].axis, 0);
+
+            fkProbe.add(j1);
+            j1.add(j2);
+            j2.add(j3);
+
+            const grip = new THREE.Group();
+            grip.position.set(0.177596, 0.046603, -0.002017);
+            j3.add(grip);
+
+            fkTip = new THREE.Object3D();
+            fkTip.position.set(TOOL0_OFFSET[0], TOOL0_OFFSET[1], TOOL0_OFFSET[2]);
+            grip.add(fkTip);
+
+            fkJoints.push(j1, j2, j3);
+        }
+
+        // Posição do tool0 no frame do URDF (= espaço local de armRoot).
+        function tool0At(q, out) {
+            for (let i = 0; i < 3; i += 1) {
+                fkJoints[i].rotation[jointEulerProp[i]] = jointEulerSign[i] * q[i];
+            }
+            fkProbe.updateMatrixWorld(true);
+            return fkTip.getWorldPosition(out || new THREE.Vector3());
+        }
+
+        // ------------------------------------------------------------
+        // Área de trabalho
+        //
+        // Todas as juntas depois de revbase giram em torno de y, então
+        // a componente lateral do TCP é CONSTANTE: py = -0.0285 m. Ou
+        // seja, com revbase em zero o braço varre uma região plana no
+        // plano y = py, e a área de trabalho é essa região girada em
+        // torno de z pela faixa de revbase.
+        //
+        // Isso importa: px cruza zero (o braço alcança para frente e
+        // para trás), então o azimute az0 = atan2(py, px) tem dois
+        // valores separados por ~180°. Com revbase restrita o volume
+        // são DOIS lobos opostos, não uma cunha só. Alinhar tudo por
+        // um azimute médio — como estava — aponta para uma direção que
+        // não corresponde a nenhuma das duas.
+        // ------------------------------------------------------------
+
+        const workspaceGroup = new THREE.Group();
+        let workspaceBuilt = false;
+        let workspaceInfo = '';
+        let workspaceModel = null;
+
+        // Contorno da região alcançável, por marching squares.
+        //
+        // Preencher um intervalo [mínimo, máximo] por fatia de altura
+        // — como era antes — é uma caixa envolvente: mede 94% de
+        // acerto, ou seja 6% do volume desenhado não existia. O
+        // contorno real segue a borda célula a célula.
+        function contoursFromGrid(grid, width, height, originX, stepX, originZ, stepZ) {
+            const at = (i, j) =>
+                (i < 0 || j < 0 || i >= width || j >= height) ? 0 : (grid[j * width + i] ? 1 : 0);
+
+            const segments = [];
+            const key = (x, z) => `${Math.round(x * 1e5)}:${Math.round(z * 1e5)}`;
+
+            const px = (i) => originX + i * stepX;
+            const pz = (j) => originZ + j * stepZ;
+
+            for (let j = -1; j < height; j += 1) {
+                for (let i = -1; i < width; i += 1) {
+                    const a = at(i, j);
+                    const b = at(i + 1, j);
+                    const c = at(i + 1, j + 1);
+                    const d = at(i, j + 1);
+
+                    const code = a | (b << 1) | (c << 2) | (d << 3);
+                    if (code === 0 || code === 15) {
+                        continue;
+                    }
+
+                    // Pontos médios das quatro arestas da célula.
+                    const bottom = { x: px(i + 0.5), z: pz(j) };
+                    const right  = { x: px(i + 1),   z: pz(j + 0.5) };
+                    const top    = { x: px(i + 0.5), z: pz(j + 1) };
+                    const left   = { x: px(i),       z: pz(j + 0.5) };
+
+                    const push = (from, to) => segments.push([from, to]);
+
+                    // Cada caso tem direcao propria: um caso e seu
+                    // COMPLEMENTO percorrem a borda em sentidos
+                    // opostos. Usar a mesma direcao para os dois
+                    // quebra a costura, e o contorno sai em pedacos.
+                    switch (code) {
+                        case 1:  push(left, bottom); break;
+                        case 2:  push(bottom, right); break;
+                        case 3:  push(left, right); break;
+                        case 4:  push(right, top); break;
+                        case 5:  push(left, bottom); push(right, top); break;
+                        case 6:  push(bottom, top); break;
+                        case 7:  push(left, top); break;
+                        case 8:  push(top, left); break;
+                        case 9:  push(top, bottom); break;
+                        case 10: push(bottom, right); push(top, left); break;
+                        case 11: push(top, right); break;
+                        case 12: push(right, left); break;
+                        case 13: push(right, bottom); break;
+                        case 14: push(bottom, left); break;
+                        default: break;
+                    }
+                }
+            }
+
+            // Costura os segmentos em laços fechados.
+            const byStart = new Map();
+            segments.forEach((segment) => {
+                const k = key(segment[0].x, segment[0].z);
+                if (!byStart.has(k)) { byStart.set(k, []); }
+                byStart.get(k).push(segment);
+            });
+
+            const used = new Set();
+            const loops = [];
+
+            segments.forEach((segment) => {
+                if (used.has(segment)) {
+                    return;
+                }
+
+                const loop = [segment[0]];
+                let current = segment;
+
+                for (let guard = 0; guard < 100000; guard += 1) {
+                    used.add(current);
+                    loop.push(current[1]);
+
+                    const next = (byStart.get(key(current[1].x, current[1].z)) || [])
+                        .find((candidate) => !used.has(candidate));
+
+                    if (!next) {
+                        break;
+                    }
+                    current = next;
+                }
+
+                if (loop.length >= 8) {
+                    loops.push(loop);
+                }
+            });
+
+            // Uma única passada de suavização, só para tirar a escada
+            // da grade. Mais que isso — e qualquer decimação por passo
+            // fixo — corta atalho nas reentrâncias e infla o contorno
+            // para fora da região alcançável: medido, o erro ia a
+            // 84 mm no pior caso.
+            return loops.map((loop) => {
+                const points = loop.slice(0, -1);
+
+                return points.map((point, index) => {
+                    const before = points[(index - 1 + points.length) % points.length];
+                    const after = points[(index + 1) % points.length];
+                    return {
+                        x: (before.x + 2 * point.x + after.x) / 4,
+                        z: (before.z + 2 * point.z + after.z) / 4
+                    };
+                });
+            }).filter((loop) => loop.length >= 6);
+        }
+
+
+        function computeWorkspaceModel() {
+            const [lo1, hi1] = state.limits[0];
+            const [lo2, hi2] = state.limits[1];
+            const [lo3, hi3] = state.limits[2];
+
+            const STEPS = 150;
+            const CELL = 0.008;
+
+            const px = [];
+            const pz = [];
+            const jointsOfSample = [];
+            const probe = new THREE.Vector3();
+
+            let py = 0;
+            let xLow = Infinity;
+            let xHigh = -Infinity;
+            let zLow = Infinity;
+            let zHigh = -Infinity;
+
+            for (let a = 0; a < STEPS; a += 1) {
+                const q2 = lo2 + (hi2 - lo2) * (a / (STEPS - 1));
+
+                for (let b = 0; b < STEPS; b += 1) {
+                    const q3 = lo3 + (hi3 - lo3) * (b / (STEPS - 1));
+                    tool0At([0, q2, q3], probe);
+
+                    px.push(probe.x);
+                    pz.push(probe.z);
+                    jointsOfSample.push(q2, q3);
+                    py = probe.y;
+
+                    if (probe.x < xLow) { xLow = probe.x; }
+                    if (probe.x > xHigh) { xHigh = probe.x; }
+                    if (probe.z < zLow) { zLow = probe.z; }
+                    if (probe.z > zHigh) { zHigh = probe.z; }
+                }
+            }
+
+            if (!(zHigh > zLow)) {
+                workspaceModel = null;
+                return;
+            }
+
+            // Grade de ocupação da secao, com uma célula de folga em
+            // volta para o contorno fechar.
+            const originX = xLow - CELL;
+            const originZ = zLow - CELL;
+            const width = Math.ceil((xHigh - originX) / CELL) + 2;
+            const height = Math.ceil((zHigh - originZ) / CELL) + 2;
+
+            const grid = new Uint8Array(width * height);
+
+            for (let i = 0; i < px.length; i += 1) {
+                const gx = Math.round((px[i] - originX) / CELL);
+                const gz = Math.round((pz[i] - originZ) / CELL);
+                if (gx >= 0 && gz >= 0 && gx < width && gz < height) {
+                    grid[gz * width + gx] = 1;
+                }
+            }
+
+            // Fecha buracos de amostragem: celulas vazias cercadas de
+            // cheias sao falha da grade, nao regiao inalcancavel.
+            const closed = grid.slice();
+            for (let j = 1; j < height - 1; j += 1) {
+                for (let i = 1; i < width - 1; i += 1) {
+                    if (grid[j * width + i]) { continue; }
+                    let around = 0;
+                    for (let dj = -1; dj <= 1; dj += 1) {
+                        for (let di = -1; di <= 1; di += 1) {
+                            if (grid[(j + dj) * width + (i + di)]) { around += 1; }
+                        }
+                    }
+                    if (around >= 7) { closed[j * width + i] = 1; }
+                }
+            }
+
+            const contours = contoursFromGrid(
+                closed, width, height, originX, CELL, originZ, CELL
+            );
+
+            if (!contours.length) {
+                workspaceModel = null;
+                return;
+            }
+
+            const samples = new Float32Array(px.length * 2);
+            for (let i = 0; i < px.length; i += 1) {
+                samples[i * 2] = px[i];
+                samples[i * 2 + 1] = pz[i];
+            }
+
+            // Guardar (q2, q3) de cada amostra deixa o travamento
+            // devolver a CONFIGURACAO que atinge o ponto, nao so o
+            // ponto. Ela vira semente da IK, que assim converge no
+            // ramo certo em vez de achar uma solucao fora da janela.
+            const sampleJoints = new Float32Array(jointsOfSample);
+
+            let reach = 0;
+            for (let i = 0; i < px.length; i += 1) {
+                reach = Math.max(reach, Math.hypot(px[i], py));
+            }
+
+            workspaceModel = {
+                samples,
+                sampleJoints,
+                contours,
+                py,
+                zLow,
+                zHigh,
+                reach,
+                sweep: [lo1, hi1],
+                fullTurn: (hi1 - lo1) >= Math.PI * 2 - 1e-6
+            };
+
+            const mm = (value) => Math.round(value * 1000);
+            const sweepDeg = Math.round(radToDeg(hi1 - lo1));
+
+            workspaceInfo =
+                `alcance até ${mm(reach)} mm · altura ${mm(zLow)} a ${mm(zHigh)} mm` +
+                (workspaceModel.fullTurn ? '' : ` · varredura ${sweepDeg}°`);
+        }
+
+        // Projeta um ponto para dentro do volume alcançável.
+        //
+        // Desfaz a rotação da base: o alvo vira (px, pz) no plano da
+        // seção, é preso na amostra alcançável mais próxima, e o
+        // ângulo de base necessário é preso na faixa de revbase.
+        // Assim o resultado é sempre atingível de verdade.
+        function clampToWorkspace(point) {
+            if (!workspaceModel) {
+                return point;
+            }
+
+            const { samples, sampleJoints, py, sweep } = workspaceModel;
+
+            const radius = Math.hypot(point.x, point.y);
+            const theta = Math.atan2(point.y, point.x);
+
+            // |px| que produz este raio, já que py é fixo.
+            const magnitude = Math.sqrt(Math.max(0, radius * radius - py * py));
+
+            let best = null;
+
+            for (const candidate of [magnitude, -magnitude]) {
+                let bestDistance = Infinity;
+                let sampleX = candidate;
+                let sampleZ = point.z;
+                let sampleIndex = -1;
+                let refinedJoints = null;
+
+                for (let i = 0; i < samples.length; i += 2) {
+                    if ((samples[i] < 0) !== (candidate < 0)) {
+                        continue;
+                    }
+
+                    const dx = samples[i] - candidate;
+                    const dz = samples[i + 1] - point.z;
+                    const distance = dx * dx + dz * dz;
+
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        sampleX = samples[i];
+                        sampleZ = samples[i + 1];
+                        sampleIndex = i / 2;
+                    }
+                }
+
+                if (bestDistance === Infinity) {
+                    continue;
+                }
+
+                // Ângulo de base que leva esta amostra ao azimute
+                // pedido, preso na faixa de revbase.
+                // Fecha o erro da grade antes de calcular a base.
+                if (sampleIndex >= 0) {
+                    const refined = refineToTarget(
+                        candidate, point.z,
+                        sampleJoints[sampleIndex * 2], sampleJoints[sampleIndex * 2 + 1]
+                    );
+                    const probe = new THREE.Vector3();
+                    tool0At([0, refined[0], refined[1]], probe);
+
+                    // Só aceita se o refino chegou mais perto.
+                    if (Math.hypot(probe.x - candidate, probe.z - point.z) <
+                        Math.hypot(sampleX - candidate, sampleZ - point.z)) {
+                        sampleX = probe.x;
+                        sampleZ = probe.z;
+                        refinedJoints = refined;
+                    }
+                }
+
+                const offset = Math.atan2(py, sampleX);
+                let base = theta - offset;
+                while (base > Math.PI) { base -= Math.PI * 2; }
+                while (base < -Math.PI) { base += Math.PI * 2; }
+                base = clamp(base, sweep[0], sweep[1]);
+
+                const cos = Math.cos(base);
+                const sin = Math.sin(base);
+
+                const result = new THREE.Vector3(
+                    sampleX * cos - py * sin,
+                    sampleX * sin + py * cos,
+                    sampleZ
+                );
+
+                const error = result.distanceTo(point);
+
+                if (!best || error < best.error) {
+                    best = {
+                        result,
+                        error,
+                        seed: refinedJoints
+                            ? [base, refinedJoints[0], refinedJoints[1]]
+                            : (sampleIndex >= 0
+                                ? [base, sampleJoints[sampleIndex * 2], sampleJoints[sampleIndex * 2 + 1]]
+                                : null)
+                    };
+                }
+            }
+
+            if (!best) {
+                return point;
+            }
+
+            // A configuracao fica guardada para virar semente da IK.
+            state.goalSeed = best.seed;
+
+            // best.result e a cinematica direta da configuracao que
+            // sera enviada, entao o marcador e o movimento coincidem.
+            return best.result;
+        }
+
+        // Refina a configuração até o alvo exato.
+        //
+        // A amostra mais próxima erra até meia célula da grade. Como o
+        // gêmeo tem a cinemática direta, dá para fechar essa distância
+        // com Newton em (revlink1, relink2): duas equações, duas
+        // incógnitas, partindo de uma semente já muito boa.
+        //
+        // Isso substitui o /compute_ik para o arraste. O KDL é um
+        // solver local e, com a janela de 180°, escolhia o ramo errado
+        // e devolvia solução fora dos limites em ~13% dos alvos — que
+        // eram todos alcançáveis, como meta em juntas provou.
+        function refineToTarget(targetX, targetZ, seedQ2, seedQ3) {
+            const [lo2, hi2] = state.limits[1];
+            const [lo3, hi3] = state.limits[2];
+
+            let q2 = seedQ2;
+            let q3 = seedQ3;
+
+            const probe = new THREE.Vector3();
+            const H = 1e-4;
+
+            for (let iteration = 0; iteration < 12; iteration += 1) {
+                tool0At([0, q2, q3], probe);
+                const ex = targetX - probe.x;
+                const ez = targetZ - probe.z;
+
+                if (Math.hypot(ex, ez) < 1e-6) {
+                    break;
+                }
+
+                tool0At([0, q2 + H, q3], probe);
+                const ax = probe.x;
+                const az = probe.z;
+                tool0At([0, q2 - H, q3], probe);
+                const j11 = (ax - probe.x) / (2 * H);
+                const j21 = (az - probe.z) / (2 * H);
+
+                tool0At([0, q2, q3 + H], probe);
+                const bx = probe.x;
+                const bz = probe.z;
+                tool0At([0, q2, q3 - H], probe);
+                const j12 = (bx - probe.x) / (2 * H);
+                const j22 = (bz - probe.z) / (2 * H);
+
+                const det = j11 * j22 - j12 * j21;
+                if (Math.abs(det) < 1e-9) {
+                    break;
+                }
+
+                q2 = clamp(q2 + ( j22 * ex - j12 * ez) / det, lo2, hi2);
+                q3 = clamp(q3 + (-j21 * ex + j11 * ez) / det, lo3, hi3);
+            }
+
+            return [q2, q3];
+        }
+
+        function disposeWorkspace() {
+            workspaceGroup.children.slice().forEach((child) => {
+                workspaceGroup.remove(child);
+                child.geometry.dispose();
+                child.material.dispose();
+            });
+            workspaceBuilt = false;
+        }
+
+        function workspaceMaterial(color, opacity, side) {
+            return new THREE.MeshStandardMaterial({
+                color,
+                roughness: 0.95,
+                metalness: 0.0,
+                transparent: true,
+                opacity,
+                side: side || THREE.DoubleSide,
+                depthWrite: false
+            });
+        }
+
+        // Varre um polígono fechado do plano da seção em torno de z.
+        //
+        // Cada vértice (x, z) vira (x·cos t − py·sin t, x·sin t +
+        // py·cos t, z). É isto que respeita o offset lateral do braço,
+        // que a revolução simples ignorava.
+        function sweepProfile(polygon, py, from, to, steps) {
+            const positions = [];
+            const indices = [];
+            const count = polygon.length;
+
+            for (let i = 0; i <= steps; i += 1) {
+                const t = from + (to - from) * (i / steps);
+                const cos = Math.cos(t);
+                const sin = Math.sin(t);
+
+                for (let j = 0; j < count; j += 1) {
+                    const p = polygon[j];
+                    positions.push(
+                        p.x * cos - py * sin,
+                        p.x * sin + py * cos,
+                        p.z
+                    );
+                }
+            }
+
+            for (let i = 0; i < steps; i += 1) {
+                for (let j = 0; j < count; j += 1) {
+                    const a = i * count + j;
+                    const b = i * count + ((j + 1) % count);
+                    const c = (i + 1) * count + ((j + 1) % count);
+                    const d = (i + 1) * count + j;
+                    indices.push(a, b, c, a, c, d);
+                }
+            }
+
+            // Tampas nas duas pontas do arco, quando não dá a volta.
+            const partial = Math.abs((to - from) - Math.PI * 2) > 1e-6;
+
+            if (partial) {
+                for (const [t, flip] of [[from, false], [to, true]]) {
+                    const cos = Math.cos(t);
+                    const sin = Math.sin(t);
+
+                    let cx = 0;
+                    let cz = 0;
+                    polygon.forEach((p) => { cx += p.x; cz += p.z; });
+                    cx /= count;
+                    cz /= count;
+
+                    const center = positions.length / 3;
+                    positions.push(cx * cos - py * sin, cx * sin + py * cos, cz);
+
+                    const ring = positions.length / 3;
+                    for (let j = 0; j < count; j += 1) {
+                        const p = polygon[j];
+                        positions.push(p.x * cos - py * sin, p.x * sin + py * cos, p.z);
+                    }
+
+                    for (let j = 0; j < count; j += 1) {
+                        const a = ring + j;
+                        const b = ring + ((j + 1) % count);
+                        if (flip) {
+                            indices.push(center, b, a);
+                        } else {
+                            indices.push(center, a, b);
+                        }
+                    }
+                }
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setIndex(indices);
+            geometry.computeVertexNormals();
+            return geometry;
+        }
+
+        function buildWorkspace() {
+            disposeWorkspace();
+
+            if (!workspaceModel) {
+                return;
+            }
+
+            const { contours, py, sweep, fullTurn } = workspaceModel;
+
+            const from = fullTurn ? 0 : sweep[0];
+            const to = fullTurn ? Math.PI * 2 : sweep[1];
+            const steps = Math.max(8, Math.round(((to - from) / (Math.PI * 2)) * 72));
+
+            contours.forEach((contour) => {
+                const geometry = sweepProfile(contour, py, from, to, steps);
+
+                const shell = new THREE.Mesh(
+                    geometry,
+                    workspaceMaterial(0x59d6c9, 0.14, THREE.DoubleSide)
+                );
+                shell.renderOrder = 1;
+                workspaceGroup.add(shell);
+
+                const hull = new THREE.LineSegments(
+                    new THREE.WireframeGeometry(geometry),
+                    new THREE.LineBasicMaterial({
+                        color: 0x59d6c9,
+                        transparent: true,
+                        opacity: 0.10,
+                        depthWrite: false
+                    })
+                );
+                hull.renderOrder = 1;
+                workspaceGroup.add(hull);
+            });
+
+            armRoot.add(workspaceGroup);
+            workspaceBuilt = true;
+        }
+
+        // Reconstrói a área de trabalho para os limites atuais. Cada
+        // arrasto de slider dispara isto, então a reconstrução é
+        // adiada para um quadro: vários "input" seguidos viram uma
+        // reconstrução só.
+        let workspacePending = false;
+
+        function refreshWorkspace() {
+            if (workspacePending) {
+                return;
+            }
+
+            workspacePending = true;
+
+            window.requestAnimationFrame(() => {
+                workspacePending = false;
+
+                // O modelo e refeito mesmo com a visualizacao
+                // desligada: ele trava o arraste do TCP.
+                computeWorkspaceModel();
+
+                if (state.showWorkspace) {
+                    buildWorkspace();
+                    workspaceGroup.visible = true;
+                    mvViewHint.textContent = workspaceInfo;
+                }
+            });
+        }
+
+        // A área de trabalho é bem maior que o braço, então ao ligá-la
+        // a câmera recua o necessário para caber. Só afasta, nunca
+        // aproxima, para não desfazer o zoom que o usuário escolheu.
+        function fitWorkspaceInView() {
+            if (!workspaceBuilt) {
+                return;
+            }
+
+            const box = new THREE.Box3().setFromObject(workspaceGroup);
+            if (box.isEmpty()) {
+                return;
+            }
+
+            const sphere = box.getBoundingSphere(new THREE.Sphere());
+            const center = sphere.center.clone();
+
+            const halfV = (camera.fov * Math.PI / 180) / 2;
+            const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+            const needed = sphere.radius / Math.sin(Math.min(halfV, halfH)) * 1.08;
+
+            const direction = camera.position.clone().sub(controls.target).normalize();
+            const current = camera.position.distanceTo(controls.target);
+
+            if (current >= needed) {
+                return;
+            }
+
+            controls.maxDistance = Math.max(controls.maxDistance, needed * 1.8);
+            controls.target.copy(center);
+            camera.position.copy(center.clone().add(direction.multiplyScalar(needed)));
+            controls.update();
+        }
+
+        // ------------------------------------------------------------
+        // Linha de trajetória do end-effector
+        // ------------------------------------------------------------
+
+        let trailLine = null;
+
+        function setTrail(points) {
+            if (trailLine) {
+                armRoot.remove(trailLine);
+                trailLine.geometry.dispose();
+                trailLine = null;
+            }
+
+            if (!points || points.length < 2) {
+                return;
+            }
+
+            const positions = new Float32Array(points.length * 3);
+            const probe = new THREE.Vector3();
+
+            points.forEach((point, index) => {
+                tool0At(point.q, probe);
+                positions[index * 3] = probe.x;
+                positions[index * 3 + 1] = probe.y;
+                positions[index * 3 + 2] = probe.z;
+            });
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            trailLine = new THREE.Line(
+                geometry,
+                new THREE.LineBasicMaterial({
+                    color: 0xf5b66d,
+                    transparent: true,
+                    opacity: 0.95
+                })
+            );
+            trailLine.renderOrder = 3;
+            trailLine.visible = state.showTrail;
+            armRoot.add(trailLine);
+        }
+
+        function ghostTargetVisible() {
+            return Boolean(ghostTarget && ghostTarget.visible);
+        }
+
+        function hideGhostTarget() {
+            if (ghostTarget) {
+                ghostTarget.visible = false;
+            }
+        }
+
+        function tcpInUrdfFrame() {
+            armRoot.updateMatrixWorld(true);
+            const world = new THREE.Vector3();
+            tcpHandle.getWorldPosition(world);
+            return armRoot.worldToLocal(world);
+        }
+
+        function setGhostFromWorld(worldPoint) {
+            ensureGhost();
+            armRoot.updateMatrixWorld(true);
+
+            // Preso ao volume alcançável: arrastar para fora daria um
+            // alvo sem solução de IK, e o braço acabaria numa pose que
+            // não é a que foi apontada.
+            const local = clampToWorkspace(armRoot.worldToLocal(worldPoint.clone()));
+
+            ghostTarget.position.copy(local);
+            ghostTarget.visible = true;
+            return local;
+        }
+
+        // ------------------------------------------------------------
+        // Conversão Junta 3D -> Motor Real (0..180°)
+        //
+        // Os motores giram 180°. Se os limites da junta forem menores
+        // (ex: 160°), a faixa física é centralizada com margem igual
+        // nos dois extremos: margem = (180 - spanDeg) / 2.
+        // Assim, para spanDeg = 160°:
+        //   q = low  (0° da junta)   -> motor = 10°
+        //   q = high (160° da junta) -> motor = 170°
+        // ------------------------------------------------------------
+
+        function jointToRealMotorDeg(index, radians) {
+            const [low, high] = state.limits[index];
+            const lowDeg = radToDeg(low);
+            const highDeg = radToDeg(high);
+            const spanDeg = Math.max(0.001, highDeg - lowDeg);
+            const margin = Math.max(0.0, (180.0 - spanDeg) / 2.0);
+
+            const currentDeg = radToDeg(displayAngle(index, radians));
+            const fraction = Math.min(1.0, Math.max(0.0, (currentDeg - lowDeg) / spanDeg));
+
+            const motorDeg = margin + fraction * spanDeg;
+            return Math.min(180.0, Math.max(0.0, motorDeg));
+        }
+
+        function realMotorToJointDeg(index, motorDeg) {
+            const [low, high] = state.limits[index];
+            const lowDeg = radToDeg(low);
+            const highDeg = radToDeg(high);
+            const spanDeg = Math.max(0.001, highDeg - lowDeg);
+            const margin = Math.max(0.0, (180.0 - spanDeg) / 2.0);
+
+            const fraction = (motorDeg - margin) / spanDeg;
+            return lowDeg + fraction * spanDeg;
+        }
+
+        function toRealDegrees(q) {
+            return q.map((value, index) => jointToRealMotorDeg(index, value));
+        }
+
+        function pushToRealRobot() {
+            if (!state.runActive && !state.sendReal) {
+                return;
+            }
+
+            const targets = [
+                jointToRealMotorDeg(0, state.q[0]),
+                jointToRealMotorDeg(1, state.q[1]),
+                jointToRealMotorDeg(2, state.q[2])
+            ];
+
+            send({ type: 'set_targets', targets });
+            targets.forEach((degrees, index) => {
+                send({ type: 'set_target', motor: index, target: degrees });
+            });
+        }
+
+        // ------------------------------------------------------------
+        // MoveIt
+        // ------------------------------------------------------------
+
+        const mvStatus = document.getElementById('mvStatus');
+        const mvTime = document.getElementById('mvTime');
+        const mvPoints = document.getElementById('mvPoints');
+        const mvDuration = document.getElementById('mvDuration');
+        const mvError = document.getElementById('mvError');
+
+        function setMoveItStatus(kind, text) {
+            mvStatus.className = `mv-pill ${kind}`;
+            mvStatus.textContent = text;
+        }
+
+        // Verdadeiro quando o status pertence a uma ação do usuário e
+        // não deve ser sobrescrito pelo polling de saúde.
+        function statusBusy() {
+            return state.planning || state.playing || Boolean(state.plan) || Boolean(state.goal);
+        }
+
+        async function moveitFetch(path, payload) {
+            const response = await fetch(path, {
+                method: payload === undefined ? 'GET' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload === undefined ? undefined : JSON.stringify(payload)
+            });
+            return response.json();
+        }
+
+        async function checkMoveIt() {
+            try {
+                const health = await moveitFetch('/api/moveit/health');
+
+                // O polling só escreve status quando não há nada em
+                // curso — senão apaga "planejando…", "plano pronto",
+                // "alvo definido" e afins.
+                if (statusBusy()) {
+                    return;
+                }
+
+                if (health.ok) {
+                    setMoveItStatus('ok', 'pronto');
+                    mvError.textContent = '';
+                } else {
+                    setMoveItStatus('fail', 'offline');
+                    mvError.textContent = health.error || 'MoveIt indisponível';
+                }
+            } catch (err) {
+                if (statusBusy()) {
+                    return;
+                }
+                setMoveItStatus('fail', 'offline');
+                mvError.textContent = String(err);
+            }
+        }
+
+        // Mantém o /joint_states do ROS igual ao braço do three.js,
+        // então o RViz mostra exatamente a mesma pose.
+        function pushStateToMoveIt() {
+            moveitFetch('/api/moveit/state', { q: state.q }).catch(() => {});
+        }
+
+        // ------------------------------------------------------------
+        // PLANEJAR: só calcula e mostra no fantasma. Não mexe no braço
+        // real nem manda nada para o robô físico.
+        // ------------------------------------------------------------
+
+        function renderGhost(q) {
+            if (!ghostJointGroups.length) {
+                return;
+            }
+
+            for (let i = 0; i < 3; i += 1) {
+                ghostJointGroups[i].rotation[jointEulerProp[i]] = jointEulerSign[i] * q[i];
+            }
+        }
+
+        let previewTicker = null;
+
+        function stopPreview() {
+            if (previewTicker !== null) {
+                window.clearInterval(previewTicker);
+                previewTicker = null;
+            }
+            ghostRoot.visible = false;
+        }
+
+        // O fantasma repete a trajetória em loop, então dá para ver o
+        // caminho inteiro antes de decidir executar.
+        function previewTrajectory(points) {
+            stopPreview();
+
+            ghostRoot.visible = true;
+
+            const total = points[points.length - 1].t;
+            let startedAt = performance.now();
+
+            previewTicker = window.setInterval(() => {
+                let elapsed = (performance.now() - startedAt) / 1000;
+
+                // Pausa no fim antes de repetir.
+                if (elapsed > total + 0.8) {
+                    startedAt = performance.now();
+                    elapsed = 0;
+                }
+
+                renderGhost(sampleTrajectory(points, Math.min(elapsed, total)));
+            }, 16);
+
+            renderGhost(points[0].q);
+        }
+
+        function sampleTrajectory(points, elapsed) {
+            const total = points[points.length - 1].t;
+
+            if (elapsed >= total) {
+                return points[points.length - 1].q;
+            }
+
+            let index = 0;
+            while (index < points.length - 2 && points[index + 1].t < elapsed) {
+                index += 1;
+            }
+
+            const a = points[index];
+            const b = points[index + 1];
+            const span = b.t - a.t;
+            const ratio = span > 1e-9 ? (elapsed - a.t) / span : 0;
+
+            return a.q.map((value, i) => value + (b.q[i] - value) * ratio);
+        }
+
+        function setExecuteEnabled(enabled) {
+            document.getElementById('mvExecute').disabled = !enabled;
+        }
+
+        async function requestPlan(goal) {
+            if (state.planning || state.playing) {
+                return;
+            }
+
+            state.planning = true;
+            state.plan = null;
+
+            // O planejador para dentro de uma tolerancia de meta
+            // (0,01 rad), entao o ultimo ponto da trajetoria nao e
+            // exatamente o valor pedido: Home caia em 0,6 / -0,2 / 0,4
+            // em vez de zero. Guardar o comando permite encostar nele
+            // no fim do movimento.
+            state.commandedQ =
+                goal.type === 'joint' ? goal.q.slice()
+                : (goal.type === 'pose' && state.goalSeed ? state.goalSeed.slice() : null);
+            setExecuteEnabled(false);
+            stopPreview();
+            setMoveItStatus('planning', 'planejando…');
+            mvError.textContent = '';
+
+            try {
+                const result = await moveitFetch('/api/moveit/plan', {
+                    start: state.q,
+                    goal,
+                    // O planejador precisa dos limites operacionais:
+                    // prender só o alvo deixaria o caminho sair da
+                    // faixa escolhida.
+                    limits: state.limits,
+                    // Configuração que o gêmeo sabe que atinge o alvo.
+                    // Sem ela a IK escolhe o ramo errado e devolve uma
+                    // solução fora da janela.
+                    seed: goal.type === 'pose' ? state.goalSeed : null
+                });
+
+                if (!result.ok) {
+                    setMoveItStatus('fail', 'falhou');
+                    mvError.textContent = result.error || 'planejamento falhou';
+                    mvTime.textContent = '--';
+                    mvPoints.textContent = '--';
+                    mvDuration.textContent = '--';
+                    return;
+                }
+
+                const duration = result.points.length
+                    ? result.points[result.points.length - 1].t
+                    : 0;
+
+                mvTime.textContent = `${(result.planning_time * 1000).toFixed(1)} ms`;
+                mvPoints.textContent = String(result.points.length);
+                mvDuration.textContent = `${duration.toFixed(2)} s`;
+
+                state.plan = result.points;
+                setTrail(result.points);
+                previewTrajectory(result.points);
+                setExecuteEnabled(true);
+                setMoveItStatus('ok', 'plano pronto');
+
+            } catch (err) {
+                setMoveItStatus('fail', 'erro');
+                mvError.textContent = String(err);
+            } finally {
+                state.planning = false;
+            }
+        }
+
+        // ------------------------------------------------------------
+        // EXECUTAR: aí sim move o gêmeo e, se habilitado, o robô real.
+        // ------------------------------------------------------------
+
+        function executePlan(onDone) {
+            if (!state.plan || state.playing || state.planning) {
+                if (onDone) { onDone(); }
+                return;
+            }
+
+            stopPreview();
+            if (state.runActive) {
+                playTrajectoryReal(state.plan, onDone);
+            } else {
+                playTrajectory(state.plan, onDone);
+            }
+            state.plan = null;
+            setExecuteEnabled(false);
+        }
+
+        // Planeja e executa, resolvendo só quando o braço parou. É o
+        // que permite encadear uma sequência de poses.
+        async function runGoal(goal) {
+            await requestPlan(goal);
+
+            if (!state.plan) {
+                return false;
+            }
+
+            await new Promise((resolve) => executePlan(resolve));
+            return true;
+        }
+
+        // ------------------------------------------------------------
+        // Espera motores reais alcançarem a posição física
+        // ------------------------------------------------------------
+
+        function waitForRealMotors(targets, tolerance = 2.5, timeoutMs = 3000) {
+            return new Promise((resolve) => {
+                const startTime = performance.now();
+
+                function check() {
+                    if (!state.playing || !state.runActive) {
+                        resolve();
+                        return;
+                    }
+
+                    let arrived = true;
+                    if (state.robot && Array.isArray(state.measured) && state.measured.length === 3) {
+                        for (let i = 0; i < 3; i += 1) {
+                            const diff = Math.abs(state.measured[i] - targets[i]);
+                            if (diff > tolerance) {
+                                arrived = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        arrived = true;
+                    }
+
+                    const elapsed = performance.now() - startTime;
+                    if (arrived || elapsed >= timeoutMs) {
+                        resolve();
+                        return;
+                    }
+
+                    window.setTimeout(check, 25);
+                }
+
+                check();
+            });
+        }
+
+        // ------------------------------------------------------------
+        // Reprodução Contínua em Streaming com Gêmeo Espelho (Opção 2)
+        // ------------------------------------------------------------
+
+        let trajectoryTicker = null;
+
+        function stopTrajectoryReal() {
+            if (trajectoryTicker !== null) {
+                window.clearInterval(trajectoryTicker);
+                trajectoryTicker = null;
+            }
+        }
+
+        async function playTrajectoryReal(points, onDone) {
+            if (!points || !points.length) {
+                if (onDone) onDone();
+                return;
+            }
+
+            stopTrajectoryReal();
+            stopPreview();
+
+            state.playing = true;
+            ghostRoot.visible = true;
+            setMoveItStatus('planning', 'executando trajetória…');
+
+            const totalDuration = points[points.length - 1].t;
+            let virtualTime = 0.0;
+            let lastTimestamp = performance.now();
+            const MAX_LAG_DEG = 20.0;
+            const RESUME_LAG_DEG = 15.0;
+            let lagPaused = false;
+
+            await new Promise((resolve) => {
+                trajectoryTicker = window.setInterval(async () => {
+                    if (!state.playing || !state.runActive) {
+                        stopTrajectoryReal();
+                        resolve();
+                        return;
+                    }
+
+                    const now = performance.now();
+                    const dt = (now - lastTimestamp) / 1000;
+                    lastTimestamp = now;
+
+                    // 1. Calcula pose teórica no tempo atual da trajetória
+                    const q_cmd = sampleTrajectory(points, Math.min(virtualTime, totalDuration));
+
+                    // 2. Renderiza o robô fantasma na pose teórica (guia da trajetória)
+                    renderGhost(q_cmd);
+
+                    // 3. Calcula e transmite os alvos contínuos para o backend
+                    const targetMotors = [
+                        jointToRealMotorDeg(0, q_cmd[0]),
+                        jointToRealMotorDeg(1, q_cmd[1]),
+                        jointToRealMotorDeg(2, q_cmd[2])
+                    ];
+
+                    send({ type: 'set_targets', targets: targetMotors });
+                    targetMotors.forEach((degrees, i) => {
+                        send({ type: 'set_target', motor: i, target: degrees });
+                    });
+
+                    // 4. Verificação de segurança: controle de lag em tempo real
+                    if (state.robot && Array.isArray(state.measured) && state.measured.length === 3) {
+                        let maxLag = 0;
+                        for (let i = 0; i < 3; i += 1) {
+                            const diff = Math.abs(state.measured[i] - targetMotors[i]);
+                            if (diff > maxLag) {
+                                maxLag = diff;
+                            }
+                        }
+
+                        if (maxLag > MAX_LAG_DEG) {
+                            lagPaused = true;
+                        } else if (lagPaused && maxLag < RESUME_LAG_DEG) {
+                            lagPaused = false;
+                        }
+
+                        if (lagPaused) {
+                            setMoveItStatus('planning', `aguardando robô real (lag ${round(maxLag)}°)…`);
+                        } else {
+                            setMoveItStatus('planning', `executando (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
+                            virtualTime += dt;
+                        }
+                    } else {
+                        // Modo sem leitura física: avança normalmente no tempo
+                        setMoveItStatus('planning', `executando (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
+                        virtualTime += dt;
+                    }
+
+                    // 5. Ao atingir o fim da trajetória teórica
+                    if (virtualTime >= totalDuration) {
+                        stopTrajectoryReal();
+
+                        // Posiciona o fantasma e os comandos exatamente no destino final
+                        const finalQ = points[points.length - 1].q;
+                        renderGhost(finalQ);
+
+                        const finalTargets = [
+                            jointToRealMotorDeg(0, finalQ[0]),
+                            jointToRealMotorDeg(1, finalQ[1]),
+                            jointToRealMotorDeg(2, finalQ[2])
+                        ];
+
+                        send({ type: 'set_targets', targets: finalTargets });
+                        finalTargets.forEach((degrees, i) => {
+                            send({ type: 'set_target', motor: i, target: degrees });
+                        });
+
+                        // Aguarda a chegada física do robô real no ponto final
+                        if (state.robot) {
+                            setMoveItStatus('planning', 'estabilizando no destino final…');
+                            await waitForRealMotors(finalTargets, 2.5, 4000);
+                        }
+
+                        resolve();
+                    }
+                }, 20); // Streaming a 50 Hz
+            });
+
+            stopTrajectoryReal();
+
+            // Normaliza pose no fim
+            if (state.commandedQ &&
+                state.commandedQ.every((value, i) =>
+                    Math.abs(displayAngle(i, value) - state.q[i]) < 0.05)) {
+                state.goalQ = state.commandedQ.map((value, i) => displayAngle(i, value));
+            } else {
+                state.goalQ = state.q.slice();
+            }
+
+            state.commandedQ = null;
+            state.playing = false;
+            state.goal = null;
+            ghostRoot.visible = false;
+            setMoveItStatus('ok', 'pronto');
+            hideGhostTarget();
+
+            if (onDone) { onDone(); }
+        }
+
+        // ------------------------------------------------------------
+        // Reprodução da trajetória planejada (Modo Simulação)
+        // ------------------------------------------------------------
+
+        function playTrajectory(points, onDone) {
+            if (!points.length) {
+                return;
+            }
+
+            state.playing = true;
+            setMoveItStatus('planning', 'executando…');
+
+            const total = points[points.length - 1].t;
+            const startedAt = performance.now();
+
+            // Timer em vez de requestAnimationFrame: rAF congela em aba
+            // oculta, o que deixaria o gêmeo parado no meio da
+            // trajetória. Com timer a reprodução sempre termina, e a
+            // interpolação é por relógio, então continua correta.
+            let ticker = null;
+
+            function finish() {
+                if (ticker !== null) {
+                    window.clearInterval(ticker);
+                    ticker = null;
+                }
+
+                // Normaliza no fim: a rotação renderizada é idêntica,
+                // então não há salto visual, mas o estado volta para a
+                // faixa canônica antes do próximo planejamento.
+                state.q = points[points.length - 1].q.map(
+                    (value, i) => displayAngle(i, value)
+                );
+
+                // Dentro da tolerancia de meta, assume o valor pedido:
+                // a diferenca e residuo do planejador, nao movimento.
+                if (state.commandedQ &&
+                    state.commandedQ.every((value, i) =>
+                        Math.abs(displayAngle(i, value) - state.q[i]) < 0.03)) {
+                    state.q = state.commandedQ.map((value, i) => displayAngle(i, value));
+                }
+
+                state.commandedQ = null;
+                state.goalQ = state.q.slice();
+                renderJoints();
+                syncSlidersFromState();
+                pushToRealRobot();
+                pushStateToMoveIt();
+
+                state.playing = false;
+                state.goal = null;
+                setMoveItStatus('ok', 'pronto');
+                hideGhostTarget();
+                stopPreview();
+
+                if (onDone) { onDone(); }
+            }
+
+            function step() {
+                const elapsed = (performance.now() - startedAt) / 1000;
+
+                if (elapsed >= total) {
+                    finish();
+                    return;
+                }
+
+                state.q = sampleTrajectory(points, elapsed);
+
+                renderJoints();
+                syncSlidersFromState();
+                pushToRealRobot();
+            }
+
+            ticker = window.setInterval(step, 16);
+            step();
+        }
+
+        function updateConnection(connected) {
+            state.connected = connected;
+            statusDot.classList.toggle('connected', connected);
+            statusText.textContent = connected ? 'CONNECTED' : 'DISCONNECTED';
+        }
+
+        function updateTelemetry() {
+            for (let i = 0; i < 3; i += 1) {
+                if (state.robot) {
+                    const motorDeg = state.measured[i];
+                    const jointDeg = realMotorToJointDeg(i, motorDeg);
+                    const targetJointDeg = radToDeg(displayAngle(i, state.q[i]));
+                    const err = targetJointDeg - jointDeg;
+
+                    document.getElementById(measuredValueIds[i]).textContent = `${round(jointDeg)}°`;
+                    document.getElementById(errorValueIds[i]).textContent = `${round(err)}°`;
+                } else {
+                    document.getElementById(measuredValueIds[i]).textContent = '--';
+                    document.getElementById(errorValueIds[i]).textContent = '--';
+                }
+            }
+
+            pwmMetric.textContent =
+                state.robot && Array.isArray(state.pwm) ? state.pwm.join(' / ') : '--';
+        }
+
+        function send(payload) {
+            if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+                state.socket.send(JSON.stringify(payload));
+            }
+        }
+
+        // O slider define o ALVO, não a pose atual — mesmo modelo do
+        // RViz. O fantasma mostra o alvo; o braço real só se mexe no
+        // Executar.
+        function setSlider(index, value) {
+            const degrees = Number.parseFloat(value);
+            const radians = clampJoint(index, degrees * Math.PI / 180);
+
+            state.goalQ[index] = radians;
+
+            // Alvo novo invalida o plano anterior.
+            state.plan = null;
+            setExecuteEnabled(false);
+
+            sliders[index].value = String(radToDeg(radians));
+            document.getElementById(targetLabelIds[index]).textContent = round(radToDeg(radians));
+
+            state.goal = { type: 'joint', q: state.goalQ.slice() };
+
+            // Mostra o alvo no fantasma, parado (sem trajetória ainda).
+            stopPreview();
+            ghostRoot.visible = true;
+            renderGhost(state.goalQ);
+            hideGhostTarget();
+
+            setMoveItStatus('idle', 'alvo definido');
+        }
+
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            state.socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            state.socket.onopen = () => {
+                updateConnection(true);
+                if (state.runActive) {
+                    send({ type: 'enable_pid' });
+                    pushToRealRobot();
+                }
+            };
+
+            state.socket.onclose = () => {
+                updateConnection(false);
+                window.setTimeout(connect, 1500);
+            };
+
+            state.socket.onmessage = (event) => {
+                let message;
+
+                try {
+                    message = JSON.parse(event.data);
+                } catch {
+                    return;
+                }
+
+                if (message.type === 'feedback') {
+                    state.robot = Boolean(message.robot);
+
+                    if (Array.isArray(message.position)) {
+                        state.measured = message.position.map((value) => Number.parseFloat(value));
+
+                        // Opção 2: O modelo 3D sólido espelha a leitura real dos potenciômetros em tempo real
+                        if (state.runActive && state.robot) {
+                            for (let i = 0; i < 3; i += 1) {
+                                const jointDeg = realMotorToJointDeg(i, state.measured[i]);
+                                state.q[i] = degreesToRadians(jointDeg);
+                            }
+                            renderJoints();
+                            pushStateToMoveIt();
+                        }
+                    }
+
+                    if (Array.isArray(message.error)) {
+                        state.errors = message.error.map((value) => Number.parseFloat(value));
+                    }
+
+                    if (Array.isArray(message.pwm)) {
+                        state.pwm = message.pwm;
+                    }
+
+                    updateTelemetry();
+                }
+            };
+        }
+
+        function resizeRenderer() {
+            const rect = canvas.getBoundingClientRect();
+            camera.aspect = rect.width / rect.height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(rect.width, rect.height, false);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        sliders.forEach((slider, index) => {
+            slider.addEventListener('input', (event) => {
+                setSlider(index, event.target.value);
+            });
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const pointerNDC = new THREE.Vector2();
+        const dragPlane = new THREE.Plane();
+        let dragging = false;
+
+        function setPointerNDC(event) {
+            const rect = canvas.getBoundingClientRect();
+            pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        }
+
+        // Arrastar o TCP move só a esfera fantasma (o alvo). Ao soltar,
+        // o MoveIt planeja e o braço reproduz a trajetória — é o MoveIt
+        // que move o robô, não o arraste.
+
+        let ghostGoal = null;
+
+        function onPointerDown(event) {
+            if (!tcpHandle || state.playing || state.planning) {
+                return;
+            }
+
+            setPointerNDC(event);
+            raycaster.setFromCamera(pointerNDC, camera);
+            const hits = raycaster.intersectObject(tcpHandle, false);
+
+            if (hits.length) {
+                event.preventDefault();
+                dragging = true;
+                controls.enabled = false;
+                canvas.style.cursor = 'grabbing';
+
+                // Pelo CENTRO do TCP, não por hits[0].point: aquele é
+                // onde o raio toca a superfície da esfera, 12 mm à
+                // frente do centro, e era um erro sistemático tanto no
+                // alvo inicial quanto no plano de arraste.
+                const tcpWorld = new THREE.Vector3();
+                tcpHandle.getWorldPosition(tcpWorld);
+
+                const camDir = new THREE.Vector3();
+                camera.getWorldDirection(camDir);
+                dragPlane.setFromNormalAndCoplanarPoint(camDir, tcpWorld);
+
+                ghostGoal = setGhostFromWorld(tcpWorld);
+            }
+        }
+
+        function onPointerMove(event) {
+            setPointerNDC(event);
+            raycaster.setFromCamera(pointerNDC, camera);
+
+            if (dragging) {
+                const point = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(dragPlane, point)) {
+                    ghostGoal = setGhostFromWorld(point);
+                }
+                return;
+            }
+
+            if (tcpHandle) {
+                const hits = raycaster.intersectObject(tcpHandle, false);
+                canvas.style.cursor = hits.length ? 'grab' : '';
+            }
+        }
+
+        function onPointerUp() {
+            if (!dragging) {
+                return;
+            }
+
+            dragging = false;
+            controls.enabled = true;
+            canvas.style.cursor = '';
+
+            // Soltar só fixa o alvo. Quem planeja é o botão Planejar.
+            //
+            // Vai como meta em JUNTAS: o travamento já resolveu a
+            // configuração exata, então não há motivo para pedir ao
+            // KDL que a redescubra — e ele erra o ramo com a janela
+            // de 180°.
+            if (ghostGoal) {
+                state.goal = state.goalSeed
+                    ? { type: 'joint', q: state.goalSeed.slice() }
+                    : { type: 'pose', xyz: [ghostGoal.x, ghostGoal.y, ghostGoal.z] };
+
+                // Os sliders mostram o alvo, então precisam seguir o
+                // arraste — e é daí que "salvar pose" tira os valores.
+                if (state.goalSeed) {
+                    state.goalQ = state.goalSeed.slice();
+                    syncSlidersFromGoal();
+                }
+
+                setMoveItStatus('idle', 'alvo definido');
+            }
+        }
+
+        canvas.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+
+        // ------------------------------------------------------------
+        // Botões do MoveIt
+        // ------------------------------------------------------------
+
+        // Planejar usa o alvo da esfera, se houver; senão usa os
+        // valores dos sliders.
+        document.getElementById('mvPlan').addEventListener('click', () => {
+            const goal = state.goal || {
+                type: 'joint',
+                q: sliders.map((slider, index) =>
+                    clampJoint(index, Number.parseFloat(slider.value) * Math.PI / 180)
+                )
+            };
+            requestPlan(goal);
+        });
+
+        document.getElementById('mvExecute').addEventListener('click', () => {
+            executePlan();
+        });
+
+        document.getElementById('mvHome').addEventListener('click', () => {
+            // Preso a janela: se o zero de alguma junta ficou fora dos
+            // limites, o plano violaria a restricao de caminho.
+            state.goalQ = [0, 0, 0].map((value, i) => clampJoint(i, value));
+            syncSlidersFromGoal();
+
+            state.goal = { type: 'joint', q: state.goalQ.slice() };
+            hideGhostTarget();
+            requestPlan(state.goal);
+        });
+
+        const btnRun = document.getElementById('btnRun');
+
+        function updateRunButton() {
+            if (!btnRun) return;
+            if (state.runActive) {
+                btnRun.classList.add('active');
+                btnRun.textContent = '■ RUN: ON';
+                btnRun.title = 'RUN ativo: robô real espelhando. Clique para desativar e parar motores.';
+            } else {
+                btnRun.classList.remove('active');
+                btnRun.textContent = '▶ RUN';
+                btnRun.title = 'Ativar espelhamento e PID no robô real';
+            }
+        }
+
+        function toggleRun() {
+            state.runActive = !state.runActive;
+            state.sendReal = state.runActive;
+            updateRunButton();
+
+            if (state.runActive) {
+                send({ type: 'enable_pid' });
+                if (state.robot && Array.isArray(state.measured) && state.measured.length === 3) {
+                    for (let i = 0; i < 3; i += 1) {
+                        const jointDeg = realMotorToJointDeg(i, state.measured[i]);
+                        state.q[i] = degreesToRadians(jointDeg);
+                    }
+                    renderJoints();
+                    pushStateToMoveIt();
+                } else {
+                    pushToRealRobot();
+                }
+                setMoveItStatus('ok', 'RUN ativo: gêmeo espelhando robô físico');
+            } else {
+                if (state.playing) {
+                    state.playing = false;
+                    stopTrajectoryReal();
+                    ghostRoot.visible = false;
+                }
+                send({ type: 'stop' });
+                setMoveItStatus('idle', 'RUN desativado');
+            }
+        }
+
+        if (btnRun) {
+            btnRun.addEventListener('click', toggleRun);
+        }
+
+        // ------------------------------------------------------------
+        // Modo posição / limites
+        // ------------------------------------------------------------
+
+        const controlsPanel = document.querySelector('.controls');
+
+        const limMin = [0, 1, 2].map((i) => document.getElementById('limMin' + i));
+        const limMax = [0, 1, 2].map((i) => document.getElementById('limMax' + i));
+
+        function setMode(mode) {
+            state.mode = mode;
+            controlsPanel.classList.toggle('limites', mode === 'limites');
+
+            document.querySelectorAll('#modeToggle .seg-btn').forEach((button) => {
+                button.classList.toggle('active', button.dataset.mode === mode);
+            });
+        }
+
+        // Escreve os limites na interface e propaga: o slider de
+        // posição passa a ter a nova faixa, o alvo e o gêmeo são
+        // reapertados para dentro dela e o volume é refeito.
+        function applyLimits(refresh) {
+            for (let i = 0; i < 3; i += 1) {
+                const [low, high] = state.limits[i];
+                const lowDeg = radToDeg(low);
+                const highDeg = radToDeg(high);
+
+                limMin[i].value = String(lowDeg);
+                limMax[i].value = String(highDeg);
+
+                document.getElementById('limMinLabel' + i).textContent = `${round(lowDeg)}°`;
+                document.getElementById('limMaxLabel' + i).textContent = `${round(highDeg)}°`;
+                document.getElementById('limSpan' + i).textContent = `${round(highDeg - lowDeg)}°`;
+                document.getElementById('limitLabel' + i).textContent =
+                    `${round(lowDeg)}° … ${round(highDeg)}°`;
+
+                // Arredondado: o ida-e-volta graus->radianos deixa
+                // resíduo (-60 vira -59.99999999999999).
+                sliders[i].min = lowDeg.toFixed(2);
+                sliders[i].max = highDeg.toFixed(2);
+
+                state.q[i] = clampJoint(i, state.q[i]);
+                state.goalQ[i] = clampJoint(i, state.goalQ[i]);
+            }
+
+            renderJoints();
+            syncSlidersFromState();
+
+            // Limite novo invalida o plano: ele foi tracado sob outra
+            // faixa e pode sair dela.
+            if (state.plan) {
+                state.plan = null;
+                setExecuteEnabled(false);
+                stopPreview();
+            }
+
+            if (refresh) {
+                refreshWorkspace();
+            }
+
+            // Limites novos podem deixar poses salvas fora da janela.
+            renderPoses();
+        }
+
+        document.querySelectorAll('#modeToggle .seg-btn').forEach((button) => {
+            button.addEventListener('click', () => setMode(button.dataset.mode));
+        });
+
+        document.getElementById('limReset').addEventListener('click', () => {
+            state.limits = DEFAULT_LIMITS.map((pair) => pair.slice());
+            applyLimits(true);
+        });
+
+        // A janela pode ficar em qualquer lugar do círculo, mas nunca
+        // passa de MAX_SPAN: ao alargar demais, o handle oposto é
+        // empurrado junto e a janela desliza em vez de crescer.
+        const MIN_SPAN = 2 * Math.PI / 180;
+
+        [0, 1, 2].forEach((i) => {
+            const bound = (value) => clamp(value, JOINT_LIMITS[i][0], JOINT_LIMITS[i][1]);
+
+            limMin[i].addEventListener('input', () => {
+                const value = bound(Number.parseFloat(limMin[i].value) * Math.PI / 180);
+                const low = Math.min(value, state.limits[i][1] - MIN_SPAN);
+
+                state.limits[i][0] = low;
+
+                if (state.limits[i][1] - low > MAX_SPAN) {
+                    state.limits[i][1] = bound(low + MAX_SPAN);
+                }
+
+                applyLimits(true);
+            });
+
+            limMax[i].addEventListener('input', () => {
+                const value = bound(Number.parseFloat(limMax[i].value) * Math.PI / 180);
+                const high = Math.max(value, state.limits[i][0] + MIN_SPAN);
+
+                state.limits[i][1] = high;
+
+                if (high - state.limits[i][0] > MAX_SPAN) {
+                    state.limits[i][0] = bound(high - MAX_SPAN);
+                }
+
+                applyLimits(true);
+            });
+        });
+
+        // ------------------------------------------------------------
+        // Botões de visualização
+        // ------------------------------------------------------------
+
+        const mvViewHint = document.getElementById('mvViewHint');
+
+        document.getElementById('mvWorkspace').addEventListener('click', (event) => {
+            state.showWorkspace = !state.showWorkspace;
+            event.currentTarget.classList.toggle('active', state.showWorkspace);
+
+            // O modelo ja existe desde a inicializacao; aqui so
+            // desenha.
+            if (state.showWorkspace && !workspaceBuilt) {
+                buildWorkspace();
+            }
+
+            workspaceGroup.visible = state.showWorkspace;
+
+            if (state.showWorkspace) {
+                fitWorkspaceInView();
+                mvViewHint.textContent = workspaceInfo;
+            } else {
+                mvViewHint.textContent = '';
+            }
+        });
+
+        document.getElementById('mvTrail').addEventListener('click', (event) => {
+            state.showTrail = !state.showTrail;
+            event.currentTarget.classList.toggle('active', state.showTrail);
+
+            if (trailLine) {
+                trailLine.visible = state.showTrail;
+            } else if (state.showTrail) {
+                mvViewHint.textContent = 'planeje um movimento para ver o traçado';
+                window.setTimeout(() => {
+                    if (mvViewHint.textContent.startsWith('planeje')) {
+                        // Devolve a informação da área de trabalho em
+                        // vez de limpar: os dois botões dividem a dica.
+                        mvViewHint.textContent = state.showWorkspace ? workspaceInfo : '';
+                    }
+                }, 3000);
+            }
+        });
+
+        // ------------------------------------------------------------
+        // Biblioteca de poses
+        //
+        // Guarda configurações de junta, não posições do TCP: uma
+        // posição pode ter mais de uma solução, e a que interessa é a
+        // que o braço estava de fato assumindo.
+        // ------------------------------------------------------------
+
+        const POSES_KEY = 'twin.poses';
+
+        const poseList = document.getElementById('poseList');
+        const poseCount = document.getElementById('poseCount');
+        const poseSave = document.getElementById('poseSave');
+        const poseRunAll = document.getElementById('poseRunAll');
+        const poseClear = document.getElementById('poseClear');
+
+        let poses = [];
+        let sequenceRunning = false;
+        let clearArmed = false;
+
+        function loadPoses() {
+            try {
+                const raw = window.localStorage.getItem(POSES_KEY);
+                const parsed = raw ? JSON.parse(raw) : [];
+                poses = Array.isArray(parsed)
+                    ? parsed.filter((pose) => Array.isArray(pose.q) && pose.q.length === 3)
+                    : [];
+            } catch {
+                poses = [];
+            }
+        }
+
+        function savePoses() {
+            try {
+                window.localStorage.setItem(POSES_KEY, JSON.stringify(poses));
+            } catch {
+                // Sem armazenamento: as poses valem só para esta sessão.
+            }
+        }
+
+        // Uma pose salva sob outros limites pode cair fora da janela
+        // atual. Em vez de falhar na hora de executar, ela é marcada.
+        function poseOutside(pose) {
+            return pose.q.some((value, index) => {
+                const [low, high] = state.limits[index];
+                return value < low - 1e-6 || value > high + 1e-6;
+            });
+        }
+
+        function renderPoses() {
+            poseList.innerHTML = '';
+
+            poseCount.textContent = poses.length
+                ? `${poses.length} salva${poses.length > 1 ? 's' : ''}`
+                : 'nenhuma';
+
+            poseRunAll.disabled = poses.length < 1 || sequenceRunning;
+            poseClear.disabled = poses.length < 1 || sequenceRunning;
+            poseSave.disabled = sequenceRunning;
+
+            if (!poses.length) {
+                const empty = document.createElement('div');
+                empty.className = 'pose-empty';
+                empty.textContent =
+                    'Escolha um alvo pelos sliders ou arrastando o TCP e clique em ' +
+                    'Salvar pose. Depois dá para executar uma de cada vez ou tudo em sequência.';
+                poseList.appendChild(empty);
+                return;
+            }
+
+            poses.forEach((pose, index) => {
+                const outside = poseOutside(pose);
+
+                const row = document.createElement('div');
+                row.className = `pose-row${outside ? ' fora' : ''}`;
+
+                const name = document.createElement('span');
+                name.className = 'pose-name';
+                name.textContent = pose.name || `Pose ${index + 1}`;
+
+                const angles = document.createElement('span');
+                angles.className = outside ? 'pose-warn' : 'pose-q';
+                angles.textContent = outside
+                    ? 'fora dos limites'
+                    : pose.q.map((value) => `${round(radToDeg(value))}°`).join(' / ');
+
+                const actions = document.createElement('div');
+                actions.className = 'pose-acts';
+
+                const go = document.createElement('button');
+                go.className = 'pose-act';
+                go.type = 'button';
+                go.textContent = '▶';
+                go.title = 'planejar e executar esta pose';
+                go.disabled = outside || sequenceRunning;
+                go.addEventListener('click', () => runPose(index));
+
+                const remove = document.createElement('button');
+                remove.className = 'pose-act del';
+                remove.type = 'button';
+                remove.textContent = '×';
+                remove.title = 'apagar';
+                remove.disabled = sequenceRunning;
+                remove.addEventListener('click', () => {
+                    poses.splice(index, 1);
+                    savePoses();
+                    renderPoses();
+                });
+
+                actions.appendChild(go);
+                actions.appendChild(remove);
+
+                row.appendChild(name);
+                row.appendChild(angles);
+                row.appendChild(actions);
+                poseList.appendChild(row);
+            });
+        }
+
+        async function runPose(index) {
+            const pose = poses[index];
+
+            if (!pose || poseOutside(pose) || state.playing || state.planning) {
+                return false;
+            }
+
+            state.goalQ = pose.q.slice();
+            syncSlidersFromGoal();
+            hideGhostTarget();
+
+            return runGoal({ type: 'joint', q: pose.q.slice() });
+        }
+
+        poseSave.addEventListener('click', () => {
+            poses.push({
+                name: `Pose ${poses.length + 1}`,
+                q: state.goalQ.slice()
+            });
+            savePoses();
+            renderPoses();
+        });
+
+        poseRunAll.addEventListener('click', async () => {
+            if (sequenceRunning) {
+                return;
+            }
+
+            const fila = poses
+                .map((pose, index) => ({ pose, index }))
+                .filter((item) => !poseOutside(item.pose));
+
+            if (!fila.length) {
+                mvError.textContent = 'nenhuma pose salva cabe nos limites atuais';
+                return;
+            }
+
+            sequenceRunning = true;
+            mvError.textContent = '';
+            renderPoses();
+
+            let parouEm = -1;
+
+            for (let i = 0; i < fila.length; i += 1) {
+                setMoveItStatus('planning', `sequência ${i + 1}/${fila.length}`);
+
+                const ok = await runPose(fila[i].index);
+
+                if (!ok) {
+                    parouEm = i + 1;
+                    break;
+                }
+            }
+
+            sequenceRunning = false;
+            renderPoses();
+
+            if (parouEm > 0) {
+                setMoveItStatus('fail', `parou na ${parouEm}ª`);
+            } else {
+                setMoveItStatus('ok', 'sequência concluída');
+            }
+        });
+
+        poseClear.addEventListener('click', () => {
+            // Apagar tudo é destrutivo, então pede o segundo clique.
+            if (!clearArmed) {
+                clearArmed = true;
+                poseClear.textContent = 'Confirmar?';
+                window.setTimeout(() => {
+                    clearArmed = false;
+                    poseClear.textContent = 'Limpar';
+                }, 3000);
+                return;
+            }
+
+            clearArmed = false;
+            poseClear.textContent = 'Limpar';
+            poses = [];
+            savePoses();
+            renderPoses();
+        });
+
+        buildFkProbe();
+        buildArm();
+        ensureGhost();
+        setMode('posicao');
+        applyLimits(false);
+        computeWorkspaceModel();
+        loadPoses();
+        renderPoses();
+        renderJoints();
+        syncSlidersFromState();
+        updateTelemetry();
+        updateConnection(false);
+        connect();
+        checkMoveIt();
+        pushStateToMoveIt();
+        window.setInterval(checkMoveIt, 5000);
+        resizeRenderer();
+        animate();
+
+        window.addEventListener('resize', resizeRenderer);
+    </script>
+</body>
+</html>

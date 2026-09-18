@@ -1,0 +1,176 @@
+<?xml version="1.0" ?>
+<robot name="problemas2_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find problemas2_urdf_description)/urdf/materials.xacro" />
+<xacro:include filename="$(find problemas2_urdf_description)/urdf/problemas2_urdf.trans" />
+<xacro:include filename="$(find problemas2_urdf_description)/urdf/problemas2_urdf.gazebo" />
+<link name="base_link">
+  <inertial>
+    <origin xyz="-0.0009056459107838102 -0.00018758334619194475 0.01881188501193005" rpy="0 0 0"/>
+    <mass value="0.038637316"/>
+    <inertia ixx="5.0159236e-05" iyy="6.2261146e-05" izz="9.2038217e-05" ixy="1.5923567e-07" iyz="-0.0" ixz="3.1847134e-07"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="pla"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link1_1">
+  <inertial>
+    <origin xyz="0.0013613415123529182 -0.011296433911538471 0.01796494077650182" rpy="0 0 0"/>
+    <mass value="0.048076033"/>
+    <inertia ixx="6.5605096e-05" iyy="6.0350318e-05" izz="7.8980892e-05" ixy="1.7515924e-06" iyz="1.3535032e-05" ixz="-1.5923567e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0005 -0.0 -0.0577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="pla"/>
+  </visual>
+  <collision>
+    <origin xyz="0.0005 -0.0 -0.0577" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link1_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link2_1">
+  <inertial>
+    <origin xyz="-0.0651365435078607 0.00830389273842163 0.008736149474852364" rpy="0 0 0"/>
+    <mass value="0.18898083"/>
+    <inertia ixx="4.2993631e-05" iyy="0.0006138535" izz="0.0005866242" ixy="1.7515924e-06" iyz="-3.1847134e-07" ixz="6.8789809e-05"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.000124 0.012 -0.101435" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="pla"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.000124 0.012 -0.101435" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link2_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="link3_1">
+  <inertial>
+    <origin xyz="-0.021381439360722065 -0.020291222799632965 -0.010770676013148905" rpy="0 0 0"/>
+    <mass value="0.12601434"/>
+    <inertia ixx="8.089172e-05" iyy="0.00028073248" izz="0.00022229299" ixy="1.4649682e-05" iyz="7.6433121e-06" ixz="-0.00010621019"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.146377 0.012 -0.119783" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="pla"/>
+  </visual>
+  <collision>
+    <origin xyz="0.146377 0.012 -0.119783" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/link3_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="gripper_1">
+  <inertial>
+    <origin xyz="-0.30165175452708043 -0.06306083804158247 -0.06053344048064653" rpy="0 0 0"/>
+    <mass value="0.021372833"/>
+    <inertia ixx="3.8216561e-06" iyy="9.7133758e-06" izz="8.2802548e-06" ixy="0.0" iyz="0.0" ixz="-2.2292994e-06"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.031219 -0.034603 -0.117766" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/gripper_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="pla"/>
+  </visual>
+  <collision>
+    <origin xyz="-0.031219 -0.034603 -0.117766" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="file://$(find problemas2_urdf_description)/meshes/gripper_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="revbase" type="continuous">
+  <origin xyz="-0.0005 0.0 0.0577" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="link1_1"/>
+  <axis xyz="0.0 -0.0 1.0"/>
+</joint>
+
+<!--
+  Limites alargados para +-180 graus.
+
+  Os valores originais do export do Fusion (revlink1 [0, 180], relink2
+  [-80, 100]) descreviam o alcance do MECANISMO. Foram abertos para o
+  circulo inteiro para que a interface possa posicionar uma janela
+  operacional de 180 graus em qualquer lugar; quem restringe de fato e
+  essa janela, editada no modo "limites". O braco fisico pode nao
+  alcancar tudo o que passa a ser modelado aqui — por isso o envio ao
+  robo real continua desligado por padrao.
+-->
+<joint name="revlink1" type="revolute">
+  <origin xyz="0.000624 -0.012 0.043735" rpy="0 0 0"/>
+  <parent link="link1_1"/>
+  <child link="link2_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+  <limit upper="3.141593" lower="-3.141593" effort="100" velocity="100"/>
+</joint>
+
+<joint name="relink2" type="revolute">
+  <origin xyz="-0.146501 0.0 0.018348" rpy="0 0 0"/>
+  <parent link="link2_1"/>
+  <child link="link3_1"/>
+  <axis xyz="-0.0 -1.0 -0.0"/>
+  <limit upper="3.141593" lower="-3.141593" effort="100" velocity="100"/>
+</joint>
+
+<joint name="griprigid" type="fixed">
+  <origin xyz="0.177596 0.046603 -0.002017" rpy="0 0 0"/>
+  <parent link="link3_1"/>
+  <child link="gripper_1"/>
+</joint>
+
+<!--
+  FRAME DE FERRAMENTA (TCP)
+
+  O frame do link "gripper_1" NÃO fica na garra: o exportador do
+  Fusion colocou a origem da junta "griprigid" a 370 mm da ponta da
+  garra, num braço cujo alcance total é 264 mm. Isso é inofensivo
+  para a dinâmica (corpo rígido, e massa/malha/origem visual são
+  coerentes entre si), mas torna "gripper_1" inútil como alvo de IK:
+  pedir "leve o TCP até (x,y,z)" moveria um ponto fantasma perto da
+  base.
+
+  "tool0" corrige isso sem tocar em nada existente: é um link sem
+  massa nem geometria, fixo na ponta real da garra, medido a partir
+  do STL. É este frame que o MoveIt usa como ponta da cadeia.
+-->
+
+<link name="tool0"/>
+
+<joint name="tool0_fixed" type="fixed">
+  <origin xyz="-0.354781 -0.063102 -0.082091" rpy="0 0 0"/>
+  <parent link="gripper_1"/>
+  <child link="tool0"/>
+</joint>
+
+</robot>

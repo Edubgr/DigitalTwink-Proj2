@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<robot name="problemas2_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<material name="pla">
+  <color rgba="0.850 0.850 0.850 1.000"/>
+</material>
+
+</robot>

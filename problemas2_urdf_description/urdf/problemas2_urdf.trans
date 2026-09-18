@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<robot name="problemas2_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro" >
+
+<transmission name="revbase_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="revbase">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="revbase_actr">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="revlink1_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="revlink1">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="revlink1_actr">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="relink2_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="relink2">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="relink2_actr">
+    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+</robot>

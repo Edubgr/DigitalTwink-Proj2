@@ -1,0 +1,25 @@
+# Nesta etapa o MoveIt só PLANEJA — quem reproduz a trajetória é o
+# robô 3D da interface web. Ainda assim o move_group precisa de uma
+# configuração de execução válida, senão o TrajectoryExecutionManager
+# quebra na inicialização.
+#
+# O "arm_controller" declarado aqui ainda não existe: ele é o
+# joint_trajectory_controller que vai subir quando o ros2_control
+# entrar no caminho (etapa A). Até lá o MoveIt avisa que não
+# encontrou o controlador, o que é esperado e não afeta planejamento.
+
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+
+  controller_names:
+    - arm_controller
+
+  arm_controller:
+    type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
+    joints:
+      - revbase
+      - revlink1
+      - relink2

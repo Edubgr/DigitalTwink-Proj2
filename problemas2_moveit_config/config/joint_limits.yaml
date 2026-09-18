@@ -1,0 +1,29 @@
+# O URDF exportado do Fusion traz velocity="100" (rad/s), que é
+# fisicamente absurdo, e "revbase" é contínua e não traz limite
+# nenhum. Sem limites sãos aqui o MoveIt gera trajetórias
+# instantâneas. Estes valores são conservadores e servem para o
+# gêmeo virtual; quando o braço real entrar no caminho eles devem
+# ser medidos.
+
+default_velocity_scaling_factor: 0.3
+default_acceleration_scaling_factor: 0.3
+
+joint_limits:
+
+  revbase:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 2.0
+
+  revlink1:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 2.0
+
+  relink2:
+    has_velocity_limits: true
+    max_velocity: 1.0
+    has_acceleration_limits: true
+    max_acceleration: 2.0
