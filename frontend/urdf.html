@@ -635,6 +635,11 @@
             cursor: pointer;
         }
 
+        .mv-slider-row input[type="range"]:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
         .mv-slider-row input[type="range"]::-webkit-slider-thumb {
             appearance: none;
             width: 14px;
@@ -2540,7 +2545,7 @@
                 state.plan = result.points;
                 setTrail(result.points);
                 previewTrajectory(result.points);
-                setExecuteEnabled(true);
+                setExecuteEnabled(!state.mirrorActive);
                 setMoveItStatus('ok', 'plano pronto');
 
             } catch (err) {
@@ -3298,7 +3303,10 @@
             }
 
             for (let i = 0; i < 3; i++) {
-                motorChart.data.datasets[i].data.push({ x: elapsed, y: plannedDeg[i] });
+                // No modo Mirror, não mostra linhas planejadas (tracejadas)
+                if (!state.mirrorActive) {
+                    motorChart.data.datasets[i].data.push({ x: elapsed, y: plannedDeg[i] });
+                }
                 motorChart.data.datasets[i + 3].data.push({ x: elapsed, y: actualDeg[i] });
                 // Alvo: usa goalQ em graus (constante por sessão)
                 motorChart.data.datasets[i + 6].data.push({ x: elapsed, y: radToDeg(state.goalQ[i]) });
@@ -3533,6 +3541,18 @@
                 chartTrajectory = null;
                 chartTrajectoryStart = null;
                 chartLastPlannedDeg = state.q.map(radToDeg);
+            }
+
+            // Desabilita Executar e sliders das juntas
+            setExecuteEnabled(!state.mirrorActive && Boolean(state.plan));
+            sliders.forEach((s) => { s.disabled = state.mirrorActive; });
+
+            // Esconde linhas tracejadas do planejado no gráfico
+            if (motorChart) {
+                for (let i = 0; i < 3; i++) {
+                    motorChart.data.datasets[i].hidden = state.mirrorActive;
+                }
+                motorChart.update('none');
             }
 
             updateMirrorButton();
