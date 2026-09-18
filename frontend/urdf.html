@@ -2950,6 +2950,7 @@
                     motorChart = null;
                     chartTrajectory = null;
                     chartTrajectoryStart = null;
+                    chartLastPlannedDeg = null;
                 }
                 // Espera o browser reflowar antes de criar/grafico
                 requestAnimationFrame(() => {
@@ -3046,6 +3047,7 @@
         let chartStartTime = null;
         let chartTrajectory = null;
         let chartTrajectoryStart = null;
+        let chartLastPlannedDeg = null;
 
         function initChart() {
             if (motorChart) {
@@ -3053,6 +3055,7 @@
             }
 
             chartStartTime = performance.now();
+            chartLastPlannedDeg = null;
 
             const ctx = chartCanvas.getContext('2d');
             motorChart = new Chart(ctx, {
@@ -3243,19 +3246,21 @@
             const actualDeg = state.q.map(radToDeg);
 
             // Posição planejada: amostra a trajetória em tempo real
-            let plannedDeg = [0, 0, 0];
+            let plannedDeg;
             if (chartTrajectory && chartTrajectoryStart !== null) {
                 const trajElapsed = (performance.now() - chartTrajectoryStart) / 1000;
                 const totalDuration = chartTrajectory[chartTrajectory.length - 1].t;
                 const sampleTime = Math.min(trajElapsed, totalDuration);
                 const sampled = sampleTrajectory(chartTrajectory, sampleTime);
                 plannedDeg = sampled.map(radToDeg);
+                chartLastPlannedDeg = plannedDeg;
 
-                // Limpa ao chegar no fim
                 if (trajElapsed >= totalDuration) {
                     chartTrajectory = null;
                     chartTrajectoryStart = null;
                 }
+            } else {
+                plannedDeg = chartLastPlannedDeg || [0, 0, 0];
             }
 
             for (let i = 0; i < 3; i++) {
