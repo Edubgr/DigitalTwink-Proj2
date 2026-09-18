@@ -2610,8 +2610,31 @@
         // ------------------------------------------------------------
 
         let trajectoryTicker = null;
+        let holdTicker = null;
+
+        function stopHoldTicker() {
+            if (holdTicker !== null) {
+                window.clearInterval(holdTicker);
+                holdTicker = null;
+            }
+        }
+
+        function startHoldTicker(targets) {
+            stopHoldTicker();
+            holdTicker = window.setInterval(() => {
+                if (!state.runActive) {
+                    stopHoldTicker();
+                    return;
+                }
+                send({ type: 'set_targets', targets });
+                targets.forEach((degrees, i) => {
+                    send({ type: 'set_target', motor: i, target: degrees });
+                });
+            }, 50);
+        }
 
         function stopTrajectoryReal() {
+            stopHoldTicker();
             if (trajectoryTicker !== null) {
                 window.clearInterval(trajectoryTicker);
                 trajectoryTicker = null;
@@ -2721,12 +2744,21 @@
                             await waitForRealMotors(finalTargets, 2.5, 4000);
                         }
 
+                        // Salva alvos finais para o hold ticker
+                        state._holdTargets = finalTargets;
+
                         resolve();
                     }
                 }, 20); // Streaming a 50 Hz
             });
 
             stopTrajectoryReal();
+
+            // Inicia hold ticker para manter o servo na posição final
+            if (state._holdTargets) {
+                startHoldTicker(state._holdTargets);
+                state._holdTargets = null;
+            }
 
             // Normaliza pose no fim
             if (state.commandedQ &&
