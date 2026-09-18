@@ -895,7 +895,7 @@
             height: 180px;
             min-height: 180px;
             border-top: 1px solid var(--line);
-            background: rgba(0,0,0,0.15);
+            background: #0c1016;
             display: none;
             position: relative;
         }
@@ -1190,10 +1190,6 @@
 
             // Gráfico de posições
             showChart: false,
-            chartTime: [],
-            chartPlanned: [[], [], []],
-            chartActual: [[], [], []],
-            chartMaxPoints: 300
         };
 
         const sliders = [
@@ -2997,84 +2993,89 @@
 
         // ============================================================
         // GRÁFICO DE POSIÇÕES DOS MOTORES
+        //
+        // Janela deslizante de 10 s, idêntica ao dashboard.
+        // Dados em {x, y} com eixo X linear fixo.
         // ============================================================
 
+        const CHART_TIME_WINDOW = 10;
+        const CHART_MOTOR_COLORS = ['#f39c4a', '#45d6c0', '#e5c454'];
+        const CHART_MOTOR_NAMES = ['revbase', 'revlink1', 'relink2'];
+
         let motorChart = null;
-        const CHART_COLORS = {
-            planned: ['rgba(89, 214, 201, 0.9)', 'rgba(122, 167, 255, 0.9)', 'rgba(245, 182, 109, 0.9)'],
-            actual:  ['rgba(255, 93, 162, 0.9)', 'rgba(100, 255, 100, 0.9)', 'rgba(255, 255, 100, 0.9)']
-        };
+        let chartStartTime = null;
 
         function initChart() {
             if (motorChart) {
                 motorChart.destroy();
             }
 
+            chartStartTime = performance.now();
+
             const ctx = chartCanvas.getContext('2d');
             motorChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: state.chartTime,
                     datasets: [
                         {
                             label: 'revbase planejado',
-                            data: state.chartPlanned[0],
-                            borderColor: CHART_COLORS.planned[0],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[0],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            borderDash: [6, 4],
+                            borderWidth: 1,
+                            borderDash: [5, 4],
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
                         },
                         {
                             label: 'revlink1 planejado',
-                            data: state.chartPlanned[1],
-                            borderColor: CHART_COLORS.planned[1],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[1],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            borderDash: [6, 4],
+                            borderWidth: 1,
+                            borderDash: [5, 4],
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
                         },
                         {
                             label: 'relink2 planejado',
-                            data: state.chartPlanned[2],
-                            borderColor: CHART_COLORS.planned[2],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[2],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
-                            borderDash: [6, 4],
+                            borderWidth: 1,
+                            borderDash: [5, 4],
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
                         },
                         {
                             label: 'revbase real',
-                            data: state.chartActual[0],
-                            borderColor: CHART_COLORS.actual[0],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[0],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
+                            borderWidth: 2,
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
                         },
                         {
                             label: 'revlink1 real',
-                            data: state.chartActual[1],
-                            borderColor: CHART_COLORS.actual[1],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[1],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
+                            borderWidth: 2,
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
                         },
                         {
                             label: 'relink2 real',
-                            data: state.chartActual[2],
-                            borderColor: CHART_COLORS.actual[2],
+                            data: [],
+                            borderColor: CHART_MOTOR_COLORS[2],
                             backgroundColor: 'transparent',
-                            borderWidth: 1.5,
+                            borderWidth: 2,
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
@@ -3097,7 +3098,7 @@
                                 color: '#cdd5df',
                                 font: { size: 10, family: 'Consolas, monospace' },
                                 usePointStyle: true,
-                                padding: 12
+                                padding: 10
                             }
                         },
                         tooltip: {
@@ -3109,13 +3110,17 @@
                             padding: 8,
                             displayColors: true,
                             callbacks: {
+                                title: (items) => items.length ? `${items[0].parsed.x.toFixed(1)} s` : '',
                                 label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}°`
                             }
                         }
                     },
                     scales: {
                         x: {
+                            type: 'linear',
                             display: true,
+                            min: 0,
+                            max: CHART_TIME_WINDOW,
                             title: {
                                 display: true,
                                 text: 'Tempo (s)',
@@ -3128,10 +3133,8 @@
                             ticks: {
                                 color: '#8b97a8',
                                 font: { size: 9, family: 'Consolas, monospace' },
-                                maxTicksLimit: 10,
-                                callback: function(value, index) {
-                                    return index % 3 === 0 ? this.getLabelForValue(value) : '';
-                                }
+                                stepSize: 2,
+                                callback: (v) => v.toFixed(0) + 's'
                             }
                         },
                         y: {
@@ -3159,29 +3162,23 @@
         function updateChart() {
             if (!motorChart || !state.showChart) return;
 
-            const now = performance.now() / 1000;
+            if (chartStartTime === null) return;
+
+            const elapsed = (performance.now() - chartStartTime) / 1000;
             const plannedDeg = state.goalQ.map(radToDeg);
             const actualDeg = state.q.map(radToDeg);
 
-            // Adiciona novo ponto
-            state.chartTime.push(now);
             for (let i = 0; i < 3; i++) {
-                state.chartPlanned[i].push(plannedDeg[i]);
-                state.chartActual[i].push(actualDeg[i]);
+                motorChart.data.datasets[i].data.push({ x: elapsed, y: plannedDeg[i] });
+                motorChart.data.datasets[i + 3].data.push({ x: elapsed, y: actualDeg[i] });
             }
 
-            // Limita o número de pontos (janela deslizante)
-            const maxPoints = state.chartMaxPoints;
-            if (state.chartTime.length > maxPoints) {
-                state.chartTime.shift();
-                for (let i = 0; i < 3; i++) {
-                    state.chartPlanned[i].shift();
-                    state.chartActual[i].shift();
-                }
-            }
+            const windowMin = Math.max(0, elapsed - CHART_TIME_WINDOW);
+            const windowMax = windowMin + CHART_TIME_WINDOW;
 
-            // Atualiza labels de tempo relativo (últimos N segundos)
-            motorChart.data.labels = state.chartTime.map(t => (t - state.chartTime[0]).toFixed(1));
+            motorChart.options.scales.x.min = windowMin;
+            motorChart.options.scales.x.max = windowMax;
+
             motorChart.update('none');
         }
 
