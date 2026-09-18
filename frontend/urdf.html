@@ -1114,12 +1114,12 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script type="importmap">
     {
         "imports": {
             "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-            "chart.js": "https://unpkg.com/chart.js@4.4.1/dist/chart.esm.min.js"
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
         }
     }
     </script>
@@ -1127,14 +1127,6 @@
         import * as THREE from 'three';
         import { STLLoader } from 'three/addons/loaders/STLLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-        let Chart = null;
-        try {
-            const chartMod = await import('chart.js');
-            Chart = chartMod.Chart;
-        } catch (e) {
-            console.warn('Chart.js não carregou:', e);
-        }
 
         // ------------------------------------------------------------
         // O gêmeo virtual vive em RADIANOS no frame do URDF.
@@ -2920,17 +2912,15 @@
                 chartWrap.classList.toggle('visible', state.showChart);
                 document.querySelector('.viewer').classList.toggle('has-chart', state.showChart);
                 chartToggle.classList.toggle('active', state.showChart);
-                if (state.showChart) {
-                    initChart();
-                } else if (motorChart) {
+                if (!state.showChart && motorChart) {
                     motorChart.destroy();
                     motorChart = null;
                 }
-                // Redimensiona o canvas 3D após o layout mudar
+                // Espera o browser reflowar antes de criar/grafico
                 requestAnimationFrame(() => {
                     resizeRenderer();
-                    if (state.showChart && motorChart) {
-                        motorChart.resize();
+                    if (state.showChart) {
+                        initChart();
                     }
                 });
             });
@@ -3016,7 +3006,6 @@
         };
 
         function initChart() {
-            if (!Chart) return;
             if (motorChart) {
                 motorChart.destroy();
             }
