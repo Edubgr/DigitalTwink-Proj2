@@ -114,6 +114,12 @@ motor_settling = [
     0
 ]
 
+motor_prev_pos = [0.0, 0.0, 0.0]
+
+motor_stuck_count = [0, 0, 0]
+
+motor_boost_left = [0, 0, 0]
+
 
 # ============================================================
 # CONFIGURAÇÃO DO CONTROLE
@@ -128,6 +134,14 @@ SETTLING_CYCLES = 15
 PWM_MIN = 60
 
 PWM_MAX = 255
+
+PWM_BOOST = 120
+
+STUCK_THRESHOLD = 0.3
+
+STUCK_CYCLES = 20
+
+BOOST_DURATION = 15
 
 control_enabled = False
 
@@ -255,6 +269,8 @@ def stop_motors():
 
         motor_stopped[i] = True
         motor_settling[i] = 0
+        motor_stuck_count[i] = 0
+        motor_boost_left[i] = 0
 
 
 # ============================================================
@@ -647,6 +663,8 @@ async def control_loop():
                         motor_stopped[i] = True
 
                         motor_settling[i] = 0
+                        motor_stuck_count[i] = 0
+                        motor_boost_left[i] = 0
 
                         # Reseta SOMENTE o PID daquele motor
                         pid[i].reset()
@@ -685,12 +703,45 @@ async def control_loop():
 
 
                         # -----------------------------------------
+                        # DETECÇÃO DE TRAVAMENTO
+                        # -----------------------------------------
+
+                        if abs(positions[i] - motor_prev_pos[i]) < STUCK_THRESHOLD:
+                            motor_stuck_count[i] += 1
+                        else:
+                            motor_stuck_count[i] = 0
+
+                        motor_prev_pos[i] = positions[i]
+
+                        if (
+                            motor_stuck_count[i] >= STUCK_CYCLES
+                            and abs(output) >= PWM_MIN
+                        ):
+                            motor_boost_left[i] = BOOST_DURATION
+                            motor_stuck_count[i] = 0
+
+
+                        # -----------------------------------------
+                        # BOOST ATIVO
+                        # -----------------------------------------
+
+                        if motor_boost_left[i] > 0:
+
+                            if output > 0:
+                                output = PWM_BOOST
+                            else:
+                                output = -PWM_BOOST
+
+                            motor_boost_left[i] -= 1
+
+
+                        # -----------------------------------------
                         # PWM MÍNIMO
                         #
                         # O motor não gira abaixo de ~60.
                         # -----------------------------------------
 
-                        if output != 0:
+                        elif output != 0:
 
                             if abs(output) < PWM_MIN:
 
