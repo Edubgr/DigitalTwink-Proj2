@@ -3870,7 +3870,7 @@
         poseSave.addEventListener('click', () => {
             poses.push({
                 name: `Pose ${poses.length + 1}`,
-                q: state.goalQ.slice()
+                q: state.q.slice()
             });
             savePoses();
             renderPoses();
