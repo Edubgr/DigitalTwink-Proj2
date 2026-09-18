@@ -3543,8 +3543,11 @@
                 chartLastPlannedDeg = state.q.map(radToDeg);
             }
 
-            // Desabilita Executar e sliders das juntas
+            // Desabilita Executar, Executar sequência e sliders das juntas
             setExecuteEnabled(!state.mirrorActive && Boolean(state.plan));
+            if (poseRunAll) {
+                poseRunAll.disabled = state.mirrorActive || poses.length < 1 || sequenceRunning;
+            }
             sliders.forEach((s) => { s.disabled = state.mirrorActive; });
 
             // Esconde linhas tracejadas do planejado no gráfico
@@ -3787,7 +3790,7 @@
                 ? `${poses.length} salva${poses.length > 1 ? 's' : ''}`
                 : 'nenhuma';
 
-            poseRunAll.disabled = poses.length < 1 || sequenceRunning;
+            poseRunAll.disabled = state.mirrorActive || poses.length < 1 || sequenceRunning;
             poseClear.disabled = poses.length < 1 || sequenceRunning;
             poseSave.disabled = sequenceRunning;
 
