@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,7 +29,8 @@
                 var(--bg);
             color: var(--text);
             font-family: Consolas, "Courier New", monospace;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         a { color: inherit; text-decoration: none; }
@@ -104,10 +105,15 @@
 
         .layout {
             display: grid;
-            grid-template-columns: minmax(420px, 1.45fr) minmax(360px, 0.85fr);
+            grid-template-columns: minmax(380px, 1fr) 360px;
+            grid-template-rows: 1fr;
             gap: 14px;
             padding: 14px;
             min-height: 0;
+        }
+
+        .layout.poses-open {
+            grid-template-columns: minmax(320px, 1fr) 245px 360px;
         }
 
         .panel {
@@ -116,6 +122,9 @@
             border-radius: 18px;
             box-shadow: var(--shadow);
             min-height: 0;
+        }
+
+        .panel.viewer {
             overflow: hidden;
         }
 
@@ -123,10 +132,11 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            padding: 14px 16px;
+            gap: 8px;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--line);
             background: rgba(255, 255, 255, 0.02);
+            flex-wrap: nowrap;
         }
 
         .panel-title {
@@ -134,6 +144,47 @@
             letter-spacing: 2px;
             text-transform: uppercase;
             color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .head-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .poses-toggle {
+            border-color: rgba(89, 214, 201, 0.45);
+            color: #8ff0e5;
+            background: rgba(89, 214, 201, 0.08);
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            padding: 0 10px;
+            min-height: 28px;
+        }
+        .poses-toggle:hover {
+            border-color: rgba(89, 214, 201, 0.8);
+            background: rgba(89, 214, 201, 0.18);
+        }
+        .poses-toggle[aria-expanded="true"] {
+            border-color: #45d6c0;
+            color: #0a0f14;
+            background: #45d6c0;
+        }
+
+        .pwm-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 8px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            font-size: 9px;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            white-space: nowrap;
+            background: rgba(255,255,255,0.02);
         }
 
         .panel-subtitle {
@@ -190,20 +241,26 @@
         .swatch.measured { background: var(--warn); }
         .swatch.base { background: #8593a5; }
 
-        /* A lista de juntas e quem cede quando falta altura: as poses
-           tem um minimo garantido, e o painel em si nunca rola. */
         .controls {
             display: grid;
-            grid-template-rows: auto minmax(0, auto) auto minmax(150px, 1fr);
+            grid-template-rows: auto auto auto;
+            row-gap: 0;
+            align-content: start;
+            align-self: start;
             min-height: 0;
+            padding: 0 16px;
+        }
+
+        .controls .panel-head {
+            padding-left: 0;
+            padding-right: 0;
         }
 
         .control-list {
-            padding: 12px 14px 0;
+            padding: 12px 0 8px;
             display: grid;
-            gap: 8px;
-            min-height: 0;
-            overflow: auto;
+            gap: 12px;
+            overflow: visible;
         }
 
         .joint-card {
@@ -255,31 +312,55 @@
            POSES
            ============================================================ */
 
-        .poses-box {
-            display: grid;
-            grid-template-rows: auto auto minmax(0, 1fr);
-            min-height: 0;
-            margin: 0 14px 14px;
-            padding: 12px;
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.02);
+        .poses-panel {
+            display: none;
+            grid-template-rows: auto auto auto;
+            align-content: start;
+            align-self: start;
+            min-width: 0;
+            overflow: visible;
         }
 
-        /* A lista rola sozinha; o painel continua sem scroll. */
+        .poses-panel.visible { display: grid; }
+
+        .poses-panel .moveit-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .pose-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 8px;
+            padding: 12px 14px 0;
+        }
+
+        .pose-actions #poseSave {
+            grid-column: 1 / -1;
+        }
+
+        .poses-panel .pose-list {
+            margin: 10px 14px 14px;
+        }
+
         .pose-list {
             margin-top: 10px;
             min-height: 60px;
-            overflow: auto;
+            overflow: visible;
             display: grid;
             gap: 6px;
             align-content: start;
         }
 
         .pose-row {
-            display: flex;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-rows: auto auto;
             align-items: center;
-            gap: 10px;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            gap: 6px 8px;
             padding: 6px 8px;
             border: 1px solid var(--line);
             border-radius: 9px;
@@ -287,14 +368,32 @@
             font-size: 11px;
         }
 
-        .pose-row.fora {
+        .pose-row.dragging { opacity: 0.45; }
+        .pose-row.drag-over { border-color: var(--accent); }
+
+        .pose-drag {
+            cursor: grab;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .pose-drag:active { cursor: grabbing; }
+
+        .pose-row.outside {
             border-color: rgba(255, 107, 138, 0.45);
         }
 
         .pose-name {
             color: #dfe6f0;
-            min-width: 58px;
+            min-width: 0;
+            white-space: nowrap;
+            cursor: pointer;
+            text-decoration: underline dotted transparent;
+            transition: text-decoration-color 0.15s;
         }
+        .pose-name:hover { text-decoration-color: rgba(223,230,240,0.5); }
 
         .pose-q {
             color: var(--muted);
@@ -302,12 +401,18 @@
             white-space: nowrap;
         }
 
+        .pose-q, .pose-warn { grid-column: 2 / -1; grid-row: 2; }
+        .pose-actions .mv-btn { min-width: 0; white-space: normal; }
+
         .pose-warn {
             color: #ff6b8a;
             font-size: 10px;
+            white-space: nowrap;
         }
 
         .pose-acts {
+            grid-column: 3;
+            grid-row: 1;
             display: flex;
             gap: 4px;
             margin-left: auto;
@@ -338,6 +443,19 @@
             color: var(--muted);
             line-height: 1.5;
             padding: 4px 2px;
+        }
+
+        .pose-name-input {
+            background: transparent;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            color: #dfe6f0;
+            font-family: inherit;
+            font-size: 11px;
+            padding: 1px 4px;
+            min-width: 80px;
+            max-width: 160px;
+            outline: none;
         }
 
         /* ============================================================
@@ -391,10 +509,10 @@
         /* Cada card tem duas faces; o modo decide qual aparece. */
         .joint-lim { display: none; }
 
-        .controls.limites .joint-pos { display: none; }
-        .controls.limites .joint-lim { display: block; }
-        .controls.limites .seg-btn.reset { display: inline-block; }
-        .controls.limites #pwmWrap { display: none; }
+        .controls.limits .joint-pos { display: none; }
+        .controls.limits .joint-lim { display: block; }
+        .controls.limits .seg-btn.reset { display: inline-block; }
+        .controls.limits .pwm-chip { display: none; }
 
         .lim-row {
             display: grid;
@@ -454,7 +572,7 @@
 
         .moveit-box {
             align-self: start;
-            margin: 0 14px 14px;
+            margin: 12px 0 16px;
             padding: 12px;
             border: 1px solid var(--line);
             border-radius: 14px;
@@ -511,9 +629,19 @@
 
         .mv-actions {
             display: flex;
+            flex-direction: column;
             gap: 8px;
-            flex-wrap: wrap;
-            align-items: center;
+        }
+
+        .mv-plan-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mv-run-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
 
         .mv-btn {
@@ -558,7 +686,8 @@
             font-weight: 600;
             letter-spacing: 0.06em;
             transition: all 0.2s ease;
-            margin-left: auto;
+            min-width: 0;
+            justify-content: center;
         }
 
         .mv-btn.run-btn:hover {
@@ -581,6 +710,8 @@
             font-weight: 600;
             letter-spacing: 0.06em;
             transition: all 0.2s ease;
+            min-width: 0;
+            justify-content: center;
         }
 
         .mv-btn.mirror-btn:hover {
@@ -596,10 +727,17 @@
             box-shadow: 0 0 14px rgba(245, 182, 109, 0.7);
         }
 
-        .mv-views {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid var(--line);
+        .legend-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+
+        .legend-actions .mv-btn {
+            min-height: 26px;
+            padding: 0 10px;
+            font-size: 10px;
         }
 
         .mv-hint {
@@ -611,7 +749,7 @@
         .mv-slider-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             margin-bottom: 10px;
             padding: 6px 8px;
             border-radius: 10px;
@@ -622,7 +760,8 @@
             font-size: 10px;
             letter-spacing: 0.06em;
             color: var(--muted);
-            min-width: 72px;
+            min-width: 60px;
+            white-space: nowrap;
         }
 
         .mv-slider-row input[type="range"] {
@@ -660,10 +799,11 @@
         }
 
         .mv-slider-row strong {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: #e7edf6;
-            min-width: 32px;
+            white-space: nowrap;
+            flex-shrink: 0;
             text-align: right;
         }
 
@@ -872,15 +1012,16 @@
         @media (max-width: 1100px) {
             body { overflow: auto; }
             .shell { grid-template-rows: auto 1fr; height: auto; }
-            .layout { grid-template-columns: 1fr; }
+            .layout, .layout.poses-open { grid-template-columns: 1fr; }
             .viewer-stage { min-height: 360px; }
+            .poses-panel { min-height: 360px; }
 
             /* Em coluna unica nao ha altura para as quatro secoes.
                Elas crescem e a pagina rola, em vez de espremer a lista
                de juntas ate 12px. */
-            .controls { grid-template-rows: auto auto auto auto; }
+            .controls { grid-template-rows: auto auto auto; }
             .control-list { overflow: visible; }
-            .pose-list { max-height: 260px; }
+            .pose-list { max-height: none; }
         }
 
         @media (max-width: 720px) {
@@ -955,12 +1096,12 @@
             <section class="panel viewer">
                 <div class="panel-head">
                     <div>
-                        <div class="panel-title">VISUALIZAÇÃO</div>
-                        <div class="panel-subtitle">Arraste a esfera rosa (TCP) para escolher o alvo</div>
+                        <div class="panel-title">Visualization</div>
+                        <div class="panel-subtitle">Drag the pink sphere (TCP) to set target</div>
                     </div>
-                    <button class="viewer-toggle" id="chartToggle" type="button" title="Mostrar/ocultar gráfico de posições dos motores">
+                    <button class="viewer-toggle" id="chartToggle" type="button" title="Show/Hide motor positions chart">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        <span>Gráfico</span>
+                        <span>Chart</span>
                     </button>
                 </div>
 
@@ -974,24 +1115,46 @@
 
                 <div class="legend">
                     <span><i class="swatch" style="background:#ff5da2"></i>TCP</span>
-                    <span><i class="swatch" style="background:#7aa7ff"></i>Alvo / fantasma</span>
-                    <span><i class="swatch" style="background:#f5b66d"></i>Trajetória</span>
-                    <span><i class="swatch" style="background:#59d6c9"></i>Alcance</span>
+                    <span><i class="swatch" style="background:#7aa7ff"></i>Target / ghost</span>
+                    <span><i class="swatch" style="background:#f5b66d"></i>Trajectory</span>
+                    <span><i class="swatch" style="background:#59d6c9"></i>Reach</span>
+                    <div class="legend-actions">
+                        <button class="mv-btn" id="mvWorkspace" type="button">Workspace</button>
+                        <button class="mv-btn" id="mvTrail" type="button">Trail</button>
+                        <span class="mv-hint" id="mvViewHint"></span>
+                    </div>
                 </div>
+            </section>
+
+            <section class="panel poses-panel" id="posesPanel" aria-hidden="true">
+                <div class="moveit-head">
+                    <div class="panel-title">Path</div>
+                    <div class="mv-pill idle" id="poseCount">none</div>
+                </div>
+
+                <div class="pose-actions">
+                    <button class="mv-btn primary" id="poseSave" type="button">Save Position</button>
+                    <button class="mv-btn" id="gripperAction" type="button">Add Gripper Action</button>
+                    <button class="mv-btn go" id="poseRunAll" type="button" disabled>Execute Sequence</button>
+                    <button class="mv-btn" id="poseClear" type="button" disabled>Clear</button>
+                </div>
+
+                <div class="pose-list" id="poseList"></div>
             </section>
 
             <section class="panel controls">
                 <div class="panel-head">
                     <div class="head-left">
-                        <div class="panel-title">JUNTAS</div>
+                        <div class="panel-title">Joints</div>
                         <div class="seg" id="modeToggle">
-                            <button class="seg-btn active" data-mode="posicao" type="button">posição</button>
-                            <button class="seg-btn" data-mode="limites" type="button">limites</button>
+<button class="seg-btn active" data-mode="position" type="button">position</button>
+                    <button class="seg-btn" data-mode="limits" type="button">limits</button>
                         </div>
                     </div>
-                    <div class="panel-title">
-                        <button class="seg-btn reset" id="limReset" type="button" title="restaurar limites do URDF">↺ URDF</button>
-                        <span id="pwmWrap">PWM <span id="pwmMetric">--</span></span>
+                    <div class="head-right">
+                        <button class="seg-btn reset" id="limReset" type="button" title="restore URDF limits">↺ URDF</button>
+                        <button class="mv-btn poses-toggle" id="posesToggle" type="button" aria-expanded="false">Path</button>
+                        <span class="pwm-chip" id="pwmWrap">PWM <span id="pwmMetric">--</span></span>
                     </div>
                 </div>
 
@@ -1006,8 +1169,8 @@
                             <input id="slider0" type="range" min="-90" max="90" step="1" value="0">
                             <div class="joint-meta">
                                 <span id="limitLabel0">-180° … 180°</span>
-                                <span>medido <strong id="measuredValue0">--</strong></span>
-                                <span>erro <strong id="errorValue0">--</strong></span>
+                                <span>measured <strong id="measuredValue0">--</strong></span>
+                                <span>error <strong id="errorValue0">--</strong></span>
                             </div>
                         </div>
 
@@ -1017,9 +1180,9 @@
                                 <input id="limMax0" type="range" min="-180" max="180" step="1" value="90">
                             </div>
                             <div class="joint-meta">
-                                <span>mín <strong id="limMinLabel0">-180°</strong></span>
-                                <span>máx <strong id="limMaxLabel0">180°</strong></span>
-                                <span>faixa <strong id="limSpan0">--</strong></span>
+                                <span>min <strong id="limMinLabel0">-180°</strong></span>
+                                <span>max <strong id="limMaxLabel0">180°</strong></span>
+                                <span>span <strong id="limSpan0">--</strong></span>
                             </div>
                         </div>
                     </div>
@@ -1034,8 +1197,8 @@
                             <input id="slider1" type="range" min="0" max="180" step="1" value="0">
                             <div class="joint-meta">
                                 <span id="limitLabel1">0° … 180°</span>
-                                <span>medido <strong id="measuredValue1">--</strong></span>
-                                <span>erro <strong id="errorValue1">--</strong></span>
+                                <span>measured <strong id="measuredValue1">--</strong></span>
+                                <span>error <strong id="errorValue1">--</strong></span>
                             </div>
                         </div>
 
@@ -1045,9 +1208,9 @@
                                 <input id="limMax1" type="range" min="-180" max="180" step="1" value="180">
                             </div>
                             <div class="joint-meta">
-                                <span>mín <strong id="limMinLabel1">0°</strong></span>
-                                <span>máx <strong id="limMaxLabel1">180°</strong></span>
-                                <span>faixa <strong id="limSpan1">--</strong></span>
+                                <span>min <strong id="limMinLabel1">0°</strong></span>
+                                <span>max <strong id="limMaxLabel1">180°</strong></span>
+                                <span>span <strong id="limSpan1">--</strong></span>
                             </div>
                         </div>
                     </div>
@@ -1062,8 +1225,8 @@
                             <input id="slider2" type="range" min="-80" max="100" step="1" value="0">
                             <div class="joint-meta">
                                 <span id="limitLabel2">-80° … 100°</span>
-                                <span>medido <strong id="measuredValue2">--</strong></span>
-                                <span>erro <strong id="errorValue2">--</strong></span>
+                                <span>measured <strong id="measuredValue2">--</strong></span>
+                                <span>error <strong id="errorValue2">--</strong></span>
                             </div>
                         </div>
 
@@ -1073,9 +1236,9 @@
                                 <input id="limMax2" type="range" min="-180" max="180" step="1" value="100">
                             </div>
                             <div class="joint-meta">
-                                <span>mín <strong id="limMinLabel2">-80°</strong></span>
-                                <span>máx <strong id="limMaxLabel2">100°</strong></span>
-                                <span>faixa <strong id="limSpan2">--</strong></span>
+                                <span>min <strong id="limMinLabel2">-80°</strong></span>
+                                <span>max <strong id="limMaxLabel2">100°</strong></span>
+                                <span>span <strong id="limSpan2">--</strong></span>
                             </div>
                         </div>
                     </div>
@@ -1093,51 +1256,35 @@
                             <strong id="mvTime">--</strong>
                         </div>
                         <div class="mv-cell">
-                            <span>PONTOS</span>
+                            <span>POINTS</span>
                             <strong id="mvPoints">--</strong>
                         </div>
                         <div class="mv-cell">
-                            <span>DURAÇÃO</span>
+                            <span>DURATION</span>
                             <strong id="mvDuration">--</strong>
                         </div>
                     </div>
 
                     <div class="mv-slider-row">
-                        <span>VELOCIDADE</span>
+                        <span>VELOCITY</span>
                         <input type="range" id="mvVelocity" min="0.1" max="3.0" step="0.1" value="0.5">
                         <strong id="mvVelocityVal">0.5 rad/s</strong>
                     </div>
 
                     <div class="mv-actions">
-                        <button class="mv-btn go" id="mvExecute" type="button" disabled>Executar</button>
-                        <button class="mv-btn" id="mvHome" type="button">Home</button>
-                        <button class="mv-btn run-btn" id="btnRun" type="button" title="Ativar espelhamento e PID no robô real">▶ RUN</button>
-                        <button class="mv-btn mirror-btn" id="btnMirror" type="button" title="Modo espelho: apenas ler o robô real, sem enviar comandos">◫ MIRROR</button>
-                    </div>
-
-                    <div class="mv-actions mv-views">
-                        <button class="mv-btn" id="mvWorkspace" type="button">Área de trabalho</button>
-                        <button class="mv-btn" id="mvTrail" type="button">Trajetória</button>
-                        <span class="mv-hint" id="mvViewHint"></span>
+                        <div class="mv-plan-actions">
+                            <button class="mv-btn go" id="mvExecute" type="button" disabled>Execute</button>
+                            <button class="mv-btn" id="mvHome" type="button">Home</button>
+                        </div>
+                        <div class="mv-run-actions">
+                            <button class="mv-btn run-btn" id="btnRun" type="button" title="Enable mirroring and PID on the real robot">▶ RUN</button>
+                            <button class="mv-btn mirror-btn" id="btnMirror" type="button" title="Mirror mode: read the real robot only, do not send commands">◫ MIRROR</button>
+                        </div>
                     </div>
 
                     <div class="mv-error" id="mvError"></div>
                 </div>
 
-                <div class="poses-box">
-                    <div class="moveit-head">
-                        <div class="panel-title">POSES</div>
-                        <div class="mv-pill idle" id="poseCount">nenhuma</div>
-                    </div>
-
-                    <div class="mv-actions">
-                        <button class="mv-btn primary" id="poseSave" type="button">Salvar pose</button>
-                        <button class="mv-btn go" id="poseRunAll" type="button" disabled>Executar sequência</button>
-                        <button class="mv-btn" id="poseClear" type="button" disabled>Limpar</button>
-                    </div>
-
-                    <div class="pose-list" id="poseList"></div>
-                </div>
             </section>
         </main>
     </div>
@@ -1196,6 +1343,7 @@
             measured: [0, 0, 0],
             errors: [0, 0, 0],
             pwm: [0, 0, 0],
+            gripperClosed: false,
             planning: false,
             playing: false,
             sendReal: false,
@@ -1212,7 +1360,7 @@
 
             // 'posicao' = sliders comandam o alvo
             // 'limites' = sliders editam a faixa de cada junta
-            mode: 'posicao',
+            mode: 'position',
 
             // Limites operacionais, sempre dentro dos do URDF.
             limits: DEFAULT_LIMITS.map((pair) => pair.slice()),
@@ -1367,7 +1515,7 @@
                 },
                 undefined,
                 (err) => {
-                    console.warn('Falha ao carregar STL, usando fallback:', def.url, err);
+                    console.warn('Failed to load STL, using fallback:', def.url, err);
                     const fallback = new THREE.Mesh(
                         new THREE.BoxGeometry(0.06, 0.06, 0.06),
                         material
@@ -1849,8 +1997,8 @@
             const sweepDeg = Math.round(radToDeg(hi1 - lo1));
 
             workspaceInfo =
-                `alcance até ${mm(reach)} mm · altura ${mm(zLow)} a ${mm(zHigh)} mm` +
-                (workspaceModel.fullTurn ? '' : ` · varredura ${sweepDeg}°`);
+                `reach up to ${mm(reach)} mm · height ${mm(zLow)} to ${mm(zHigh)} mm` +
+                (workspaceModel.fullTurn ? '' : ` · sweep ${sweepDeg}°`);
         }
 
         // Projeta um ponto para dentro do volume alcançável.
@@ -2181,7 +2329,6 @@
                 if (state.showWorkspace) {
                     buildWorkspace();
                     workspaceGroup.visible = true;
-                    mvViewHint.textContent = workspaceInfo;
                 }
             });
         }
@@ -2399,11 +2546,11 @@
                 }
 
                 if (health.ok) {
-                    setMoveItStatus('ok', 'pronto');
+                    setMoveItStatus('ok', 'ready');
                     mvError.textContent = '';
                 } else {
                     setMoveItStatus('fail', 'offline');
-                    mvError.textContent = health.error || 'MoveIt indisponível';
+                    mvError.textContent = health.error || 'MoveIt unavailable';
                 }
             } catch (err) {
                 if (statusBusy()) {
@@ -2470,6 +2617,18 @@
             renderGhost(points[0].q);
         }
 
+        function previewPose(q) {
+            stopPreview();
+            ghostRoot.visible = true;
+            renderGhost(q);
+
+            armRoot.updateMatrixWorld(true);
+            const local = armRoot.worldToLocal(tool0At(q, new THREE.Vector3()));
+            ensureGhost();
+            ghostTarget.position.copy(local);
+            ghostTarget.visible = true;
+        }
+
         function sampleTrajectory(points, elapsed) {
             const total = points[points.length - 1].t;
 
@@ -2500,6 +2659,7 @@
             }
 
             state.planning = true;
+            renderPoses();
             state.plan = null;
 
             // O planejador para dentro de uma tolerancia de meta
@@ -2512,7 +2672,7 @@
                 : (goal.type === 'pose' && state.goalSeed ? state.goalSeed.slice() : null);
             setExecuteEnabled(false);
             stopPreview();
-            setMoveItStatus('planning', 'planejando…');
+            setMoveItStatus('planning', 'planning…');
             mvError.textContent = '';
 
             try {
@@ -2526,8 +2686,8 @@
                 });
 
                 if (!result.ok) {
-                    setMoveItStatus('fail', 'falhou');
-                    mvError.textContent = result.error || 'planejamento falhou';
+                    setMoveItStatus('fail', 'failed');
+                    mvError.textContent = result.error || 'planning failed';
                     mvTime.textContent = '--';
                     mvPoints.textContent = '--';
                     mvDuration.textContent = '--';
@@ -2546,13 +2706,14 @@
                 setTrail(result.points);
                 previewTrajectory(result.points);
                 setExecuteEnabled(!state.mirrorActive);
-                setMoveItStatus('ok', 'plano pronto');
+                setMoveItStatus('ok', 'plan ready');
 
             } catch (err) {
-                setMoveItStatus('fail', 'erro');
+                setMoveItStatus('fail', 'error');
                 mvError.textContent = String(err);
             } finally {
                 state.planning = false;
+                renderPoses();
             }
         }
 
@@ -2561,7 +2722,8 @@
         // ------------------------------------------------------------
 
         function executePlan(onDone) {
-            if (!state.plan || state.playing || state.planning) {
+            if (!state.plan || state.playing || state.planning || state.mirrorActive ||
+                (state.runActive && (!state.robot || !state.connected))) {
                 if (onDone) { onDone(); }
                 return;
             }
@@ -2584,14 +2746,18 @@
         // Planeja e executa, resolvendo só quando o braço parou. É o
         // que permite encadear uma sequência de poses.
         async function runGoal(goal) {
+            const epoch = executionEpoch;
+            if (state.mirrorActive || (state.runActive && (!state.robot || !state.connected))) return false;
             await requestPlan(goal);
 
-            if (!state.plan) {
+            if (!state.plan || epoch !== executionEpoch || state.mirrorActive) {
+                stopPreview();
                 return false;
             }
 
             await new Promise((resolve) => executePlan(resolve));
-            return true;
+            return epoch === executionEpoch && !state.mirrorActive &&
+                (!state.runActive || (state.robot && state.connected));
         }
 
         // ------------------------------------------------------------
@@ -2639,6 +2805,7 @@
         // ------------------------------------------------------------
 
         let trajectoryTicker = null;
+        let trajectoryResolve = null;
         let holdTicker = null;
 
         function stopHoldTicker() {
@@ -2663,6 +2830,10 @@
         }
 
         function stopTrajectoryReal() {
+            if (trajectoryResolve) {
+                trajectoryResolve();
+                trajectoryResolve = null;
+            }
             stopHoldTicker();
             if (trajectoryTicker !== null) {
                 window.clearInterval(trajectoryTicker);
@@ -2681,7 +2852,7 @@
 
             state.playing = true;
             ghostRoot.visible = true;
-            setMoveItStatus('planning', 'executando trajetória…');
+            setMoveItStatus('planning', 'executing trajectory…');
 
             const totalDuration = points[points.length - 1].t;
             let virtualTime = 0.0;
@@ -2691,6 +2862,7 @@
             let lagPaused = false;
 
             await new Promise((resolve) => {
+                trajectoryResolve = resolve;
                 trajectoryTicker = window.setInterval(async () => {
                     if (!state.playing || !state.runActive) {
                         stopTrajectoryReal();
@@ -2737,20 +2909,21 @@
                         }
 
                         if (lagPaused) {
-                            setMoveItStatus('planning', `aguardando robô real (lag ${round(maxLag)}°)…`);
+                            setMoveItStatus('planning', `waiting for real robot (lag ${round(maxLag)}°)…`);
                         } else {
-                            setMoveItStatus('planning', `executando (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
+                            setMoveItStatus('planning', `executing (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
                             virtualTime += dt;
                         }
                     } else {
                         // Modo sem leitura física: avança normalmente no tempo
-                        setMoveItStatus('planning', `executando (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
+                        setMoveItStatus('planning', `executing (${virtualTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s)`);
                         virtualTime += dt;
                     }
 
                     // 5. Ao atingir o fim da trajetória teórica
                     if (virtualTime >= totalDuration) {
-                        stopTrajectoryReal();
+                        window.clearInterval(trajectoryTicker);
+                        trajectoryTicker = null;
 
                         // Posiciona o fantasma e os comandos exatamente no destino final
                         const finalQ = points[points.length - 1].q;
@@ -2769,7 +2942,7 @@
 
                         // Aguarda a chegada física do robô real no ponto final
                         if (state.robot) {
-                            setMoveItStatus('planning', 'estabilizando no destino final…');
+                            setMoveItStatus('planning', 'settling at final destination…');
                             await waitForRealMotors(finalTargets, 2.5, 4000);
                         }
 
@@ -2802,7 +2975,7 @@
             state.playing = false;
             state.goal = null;
             ghostRoot.visible = false;
-            setMoveItStatus('ok', 'pronto');
+            setMoveItStatus('ok', 'ready');
             hideGhostTarget();
 
             if (onDone) { onDone(); }
@@ -2818,6 +2991,8 @@
             }
 
             state.playing = true;
+            ghostRoot.visible = true;
+            renderGhost(points[points.length - 1].q);
             setMoveItStatus('planning', 'executando…');
 
             const total = points[points.length - 1].t;
@@ -2859,7 +3034,7 @@
 
                 state.playing = false;
                 state.goal = null;
-                setMoveItStatus('ok', 'pronto');
+                setMoveItStatus('ok', 'ready');
                 hideGhostTarget();
                 stopPreview();
 
@@ -2867,6 +3042,13 @@
             }
 
             function step() {
+                if (!state.playing || state.mirrorActive) {
+                    window.clearInterval(ticker);
+                    state.playing = false;
+                    stopPreview();
+                    if (onDone) onDone();
+                    return;
+                }
                 const elapsed = (performance.now() - startedAt) / 1000;
 
                 if (elapsed >= total) {
@@ -2945,7 +3127,7 @@
             renderGhost(state.goalQ);
             hideGhostTarget();
 
-            setMoveItStatus('idle', 'alvo definido');
+            setMoveItStatus('idle', 'target set');
 
             // Auto-planeja 2s após a última mudança do slider.
             clearTimeout(sliderPlanTimer);
@@ -2998,6 +3180,11 @@
             });
 
             state.socket.onclose = () => {
+                cancelPoseExecution();
+                state.runActive = false;
+                state.sendReal = false;
+                state.robot = false;
+                updateRunButton();
                 updateConnection(false);
                 window.setTimeout(connect, 1500);
             };
@@ -3011,8 +3198,32 @@
                     return;
                 }
 
+                if (message.type === 'gripper_ack') {
+                    const pending = gripperRequests.get(message.request_id);
+                    if (!pending) return;
+                    window.clearTimeout(pending.timer);
+                    gripperRequests.delete(message.request_id);
+                    if (message.ok === true) pending.resolve(message);
+                    else pending.reject(new Error(message.error || 'Gripper not confirmed'));
+                    return;
+                }
+
                 if (message.type === 'feedback') {
                     state.robot = Boolean(message.robot);
+                    if (state.runActive && !state.robot) {
+                        cancelPoseExecution();
+                        state.runActive = false;
+                        state.sendReal = false;
+                        state.playing = false;
+                        stopTrajectoryReal();
+                        stopPreview();
+                        send({ type: 'stop' });
+                        updateRunButton();
+                    }
+                    if ((state.runActive || state.mirrorActive) && typeof message.gripper_closed === 'boolean') {
+                        state.gripperClosed = message.gripper_closed;
+                        gripperAction.textContent = nextGripperClosed() ? 'Add gripper close' : 'Add gripper open';
+                    }
 
                     if (Array.isArray(message.position)) {
                         state.measured = message.position.map((value) => Number.parseFloat(value));
@@ -3102,7 +3313,7 @@
                 data: {
                     datasets: [
                         {
-                            label: 'revbase planejado',
+                            label: 'revbase planned',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[0],
                             backgroundColor: 'transparent',
@@ -3113,7 +3324,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'revlink1 planejado',
+                            label: 'revlink1 planned',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[1],
                             backgroundColor: 'transparent',
@@ -3124,7 +3335,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'relink2 planejado',
+                            label: 'relink2 planned',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[2],
                             backgroundColor: 'transparent',
@@ -3135,7 +3346,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'revbase real',
+                            label: 'revbase actual',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[0],
                             backgroundColor: 'transparent',
@@ -3145,7 +3356,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'revlink1 real',
+                            label: 'revlink1 actual',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[1],
                             backgroundColor: 'transparent',
@@ -3155,7 +3366,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'relink2 real',
+                            label: 'relink2 actual',
                             data: [],
                             borderColor: CHART_MOTOR_COLORS[2],
                             backgroundColor: 'transparent',
@@ -3165,7 +3376,7 @@
                             tension: 0.1
                         },
                         {
-                            label: 'revbase alvo',
+                            label: 'revbase goal',
                             data: [],
                             borderColor: CHART_GOAL_COLOR,
                             backgroundColor: 'transparent',
@@ -3176,7 +3387,7 @@
                             tension: 0
                         },
                         {
-                            label: 'revlink1 alvo',
+                            label: 'revlink1 goal',
                             data: [],
                             borderColor: CHART_GOAL_COLOR,
                             backgroundColor: 'transparent',
@@ -3187,7 +3398,7 @@
                             tension: 0
                         },
                         {
-                            label: 'relink2 alvo',
+                            label: 'relink2 goal',
                             data: [],
                             borderColor: CHART_GOAL_COLOR,
                             backgroundColor: 'transparent',
@@ -3240,7 +3451,7 @@
                             max: CHART_TIME_WINDOW,
                             title: {
                                 display: true,
-                                text: 'Tempo (s)',
+                                text: 'Time (s)',
                                 color: '#8b97a8',
                                 font: { size: 10, family: 'Consolas, monospace' }
                             },
@@ -3260,7 +3471,7 @@
                             max: 180,
                             title: {
                                 display: true,
-                                text: 'Posição (°)',
+                                text: 'Position (°)',
                                 color: '#8b97a8',
                                 font: { size: 10, family: 'Consolas, monospace' }
                             },
@@ -3452,15 +3663,17 @@
             if (state.runActive) {
                 btnRun.classList.add('active');
                 btnRun.textContent = '■ RUN: ON';
-                btnRun.title = 'RUN ativo: robô real espelhando. Clique para desativar e parar motores.';
+                btnRun.title = 'RUN active: real robot mirroring. Click to disable and stop motors.';
             } else {
                 btnRun.classList.remove('active');
                 btnRun.textContent = '▶ RUN';
-                btnRun.title = 'Ativar espelhamento e PID no robô real';
+                btnRun.title = 'Enable mirroring and PID on the real robot';
             }
         }
 
         function toggleRun() {
+            if (!state.runActive && (actionRunning || sequenceRunning || state.playing || state.planning)) return;
+            cancelPoseExecution();
             state.runActive = !state.runActive;
             state.sendReal = state.runActive;
 
@@ -3484,7 +3697,7 @@
                 } else {
                     pushToRealRobot();
                 }
-                setMoveItStatus('ok', 'RUN ativo: gêmeo espelhando robô físico');
+                setMoveItStatus('ok', 'RUN active: twin mirroring real robot');
             } else {
                 if (state.playing) {
                     state.playing = false;
@@ -3492,7 +3705,7 @@
                     ghostRoot.visible = false;
                 }
                 send({ type: 'stop' });
-                setMoveItStatus('idle', 'RUN desativado');
+                setMoveItStatus('idle', 'RUN disabled');
             }
         }
 
@@ -3511,15 +3724,16 @@
             if (state.mirrorActive) {
                 btnMirror.classList.add('active');
                 btnMirror.textContent = '■ MIRROR: ON';
-                btnMirror.title = 'MIRROR ativo: lendo robô real. Clique para desativar.';
+                btnMirror.title = 'MIRROR active: reading real robot. Click to disable.';
             } else {
                 btnMirror.classList.remove('active');
                 btnMirror.textContent = '◫ MIRROR';
-                btnMirror.title = 'Modo espelho: apenas ler o robô real, sem enviar comandos';
+                btnMirror.title = 'Mirror mode: read the real robot only, do not send commands';
             }
         }
 
         function toggleMirror() {
+            cancelPoseExecution();
             state.mirrorActive = !state.mirrorActive;
 
             // Mutual exclusion: desativa Run se Mirror ativar
@@ -3549,6 +3763,7 @@
                 poseRunAll.disabled = state.mirrorActive || poses.length < 1 || sequenceRunning;
             }
             sliders.forEach((s) => { s.disabled = state.mirrorActive; });
+            renderPoses();
 
             // Esconde linhas tracejadas do planejado no gráfico
             if (motorChart) {
@@ -3572,9 +3787,9 @@
                     syncSlidersFromState();
                     pushStateToMoveIt();
                 }
-                setMoveItStatus('ok', 'MIRROR ativo: lendo robô real');
+                setMoveItStatus('ok', 'MIRROR active: reading real robot');
             } else {
-                setMoveItStatus('idle', 'MIRROR desativado');
+                setMoveItStatus('idle', 'MIRROR disabled');
             }
         }
 
@@ -3587,13 +3802,28 @@
         // ------------------------------------------------------------
 
         const controlsPanel = document.querySelector('.controls');
+        const layout = document.querySelector('.layout');
+        const posesPanel = document.getElementById('posesPanel');
+        const posesToggle = document.getElementById('posesToggle');
+
+        function togglePoses() {
+            const visible = !posesPanel.classList.contains('visible');
+            posesPanel.classList.toggle('visible', visible);
+            layout.classList.toggle('poses-open', visible);
+            posesToggle.classList.toggle('active', visible);
+            posesToggle.setAttribute('aria-expanded', String(visible));
+            posesPanel.setAttribute('aria-hidden', String(!visible));
+            requestAnimationFrame(resizeRenderer);
+        }
+
+        posesToggle.addEventListener('click', togglePoses);
 
         const limMin = [0, 1, 2].map((i) => document.getElementById('limMin' + i));
         const limMax = [0, 1, 2].map((i) => document.getElementById('limMax' + i));
 
         function setMode(mode) {
             state.mode = mode;
-            controlsPanel.classList.toggle('limites', mode === 'limites');
+            controlsPanel.classList.toggle('limits', mode === 'limits');
 
             document.querySelectorAll('#modeToggle .seg-btn').forEach((button) => {
                 button.classList.toggle('active', button.dataset.mode === mode);
@@ -3707,13 +3937,6 @@
             }
 
             workspaceGroup.visible = state.showWorkspace;
-
-            if (state.showWorkspace) {
-                fitWorkspaceInView();
-                mvViewHint.textContent = workspaceInfo;
-            } else {
-                mvViewHint.textContent = '';
-            }
         });
 
         document.getElementById('mvTrail').addEventListener('click', (event) => {
@@ -3722,15 +3945,6 @@
 
             if (trailLine) {
                 trailLine.visible = state.showTrail;
-            } else if (state.showTrail) {
-                mvViewHint.textContent = 'planeje um movimento para ver o traçado';
-                window.setTimeout(() => {
-                    if (mvViewHint.textContent.startsWith('planeje')) {
-                        // Devolve a informação da área de trabalho em
-                        // vez de limpar: os dois botões dividem a dica.
-                        mvViewHint.textContent = state.showWorkspace ? workspaceInfo : '';
-                    }
-                }, 3000);
             }
         });
 
@@ -3747,19 +3961,65 @@
         const poseList = document.getElementById('poseList');
         const poseCount = document.getElementById('poseCount');
         const poseSave = document.getElementById('poseSave');
+        const gripperAction = document.getElementById('gripperAction');
         const poseRunAll = document.getElementById('poseRunAll');
         const poseClear = document.getElementById('poseClear');
 
         let poses = [];
         let sequenceRunning = false;
         let clearArmed = false;
+        let actionRunning = false;
+        let draggedPose = null;
+        let executionEpoch = 0;
+        let gripperRequestId = 0;
+        const gripperRequests = new Map();
+
+        function nextGripperClosed() {
+            const last = poses.slice().reverse().find((pose) => pose.type === 'gripper');
+            return !(last ? last.closed : state.gripperClosed);
+        }
+
+        function requestGripper(closed) {
+            return new Promise((resolve, reject) => {
+                if (!state.runActive || state.mirrorActive || !state.robot ||
+                    !state.socket || state.socket.readyState !== WebSocket.OPEN) {
+                    reject(new Error('Physical gripper requires RUN and ESP32 connected'));
+                    return;
+                }
+                const request_id = String(++gripperRequestId);
+                const timer = window.setTimeout(() => {
+                    gripperRequests.delete(request_id);
+                    reject(new Error('Timeout waiting for gripper confirmation'));
+                }, 2500);
+                gripperRequests.set(request_id, { resolve, reject, timer });
+                send({ type: 'set_gripper', request_id, closed, mode: 'run' });
+            });
+        }
+
+        function cancelPoseExecution() {
+            executionEpoch += 1;
+            for (const pending of gripperRequests.values()) {
+                window.clearTimeout(pending.timer);
+                pending.reject(new Error('Execution interrupted'));
+            }
+            gripperRequests.clear();
+        }
 
         function loadPoses() {
             try {
                 const raw = window.localStorage.getItem(POSES_KEY);
                 const parsed = raw ? JSON.parse(raw) : [];
                 poses = Array.isArray(parsed)
-                    ? parsed.filter((pose) => Array.isArray(pose.q) && pose.q.length === 3)
+                    ? parsed.filter((item) =>
+                        item && typeof item === 'object' && (
+                            (item.type === 'gripper' && typeof item.closed === 'boolean') ||
+                            ((item.type === undefined || item.type === 'pose') &&
+                                Array.isArray(item.q) && item.q.length === 3 && item.q.every(Number.isFinite))
+                        )
+                    ).map((item) => item.type === 'gripper'
+                        ? item
+                        : { ...item, type: 'pose' }
+                    )
                     : [];
             } catch {
                 poses = [];
@@ -3777,6 +4037,10 @@
         // Uma pose salva sob outros limites pode cair fora da janela
         // atual. Em vez de falhar na hora de executar, ela é marcada.
         function poseOutside(pose) {
+            if (pose.type === 'gripper') {
+                return false;
+            }
+
             return pose.q.some((value, index) => {
                 const [low, high] = state.limits[index];
                 return value < low - 1e-6 || value > high + 1e-6;
@@ -3787,19 +4051,22 @@
             poseList.innerHTML = '';
 
             poseCount.textContent = poses.length
-                ? `${poses.length} salva${poses.length > 1 ? 's' : ''}`
-                : 'nenhuma';
+                ? `${poses.length} saved${poses.length > 1 ? 's' : ''}`
+                : 'none';
 
-            poseRunAll.disabled = state.mirrorActive || poses.length < 1 || sequenceRunning;
-            poseClear.disabled = poses.length < 1 || sequenceRunning;
-            poseSave.disabled = sequenceRunning;
+            const busy = sequenceRunning || actionRunning || state.playing || state.planning;
+            poseRunAll.disabled = state.mirrorActive || poses.length < 1 || busy;
+            poseClear.disabled = poses.length < 1 || busy;
+            poseSave.disabled = busy;
+            gripperAction.disabled = busy;
+            gripperAction.textContent = nextGripperClosed() ? 'Add gripper close' : 'Add gripper open';
 
             if (!poses.length) {
                 const empty = document.createElement('div');
                 empty.className = 'pose-empty';
                 empty.textContent =
-                    'Escolha um alvo pelos sliders ou arrastando o TCP e clique em ' +
-                    'Salvar pose. Depois dá para executar uma de cada vez ou tudo em sequência.';
+                    'Choose a target using the sliders or by dragging the TCP, then click ' +
+                    'Save Position. You can execute one at a time or all in sequence.';
                 poseList.appendChild(empty);
                 return;
             }
@@ -3808,17 +4075,91 @@
                 const outside = poseOutside(pose);
 
                 const row = document.createElement('div');
-                row.className = `pose-row${outside ? ' fora' : ''}`;
+                row.className = `pose-row${outside ? ' outside' : ''}`;
+                row.title = pose.type === 'gripper'
+                    ? 'drag to reorder'
+                    : 'click to preview final position';
+                row.draggable = !busy;
+                row.addEventListener('click', (event) => {
+                    if (event.target.closest('button, input') || busy || pose.type !== 'pose') {
+                        return;
+                    }
+                    previewPose(pose.q);
+                });
+                row.addEventListener('dragstart', (event) => {
+                    draggedPose = pose;
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', String(index));
+                    row.classList.add('dragging');
+                });
+                row.addEventListener('dragend', () => {
+                    draggedPose = null;
+                    row.classList.remove('dragging');
+                });
+                row.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    row.classList.add('drag-over');
+                });
+                row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+                row.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    row.classList.remove('drag-over');
+                    const raw = event.dataTransfer.getData('text/plain');
+                    const from = Number(raw);
+                    if (!draggedPose || !/^\d+$/.test(raw) || !Number.isInteger(from) ||
+                        from < 0 || from >= poses.length || poses[from] !== draggedPose ||
+                        from === index || sequenceRunning || actionRunning || state.playing || state.planning) return;
+                    draggedPose = null;
+                    const [pose] = poses.splice(from, 1);
+                    poses.splice(index, 0, pose);
+                    savePoses();
+                    renderPoses();
+                });
+
+                const drag = document.createElement('span');
+                drag.className = 'pose-drag';
+                drag.title = 'drag to reorder';
+                drag.textContent = '⠿';
 
                 const name = document.createElement('span');
                 name.className = 'pose-name';
-                name.textContent = pose.name || `Pose ${index + 1}`;
+                name.textContent = pose.type === 'gripper'
+                    ? (pose.closed ? 'Close gripper' : 'Open gripper')
+                    : (pose.name || `Pose ${index + 1}`);
+
+                if (pose.type !== 'gripper') {
+                    name.addEventListener('dblclick', () => {
+                        if (busy) return;
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.className = 'pose-name-input';
+                        input.value = pose.name || `Pose ${index + 1}`;
+                        input.maxLength = 40;
+                        name.replaceWith(input);
+                        input.focus();
+                        input.select();
+                        const commit = () => {
+                            const val = input.value.trim();
+                            pose.name = val || `Pose ${index + 1}`;
+                            savePoses();
+                            renderPoses();
+                        };
+                        input.addEventListener('blur', commit);
+                        input.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') input.blur();
+                            if (e.key === 'Escape') { input.value = pose.name || `Pose ${index + 1}`; input.blur(); }
+                        });
+                    });
+                }
 
                 const angles = document.createElement('span');
                 angles.className = outside ? 'pose-warn' : 'pose-q';
-                angles.textContent = outside
-                    ? 'fora dos limites'
-                    : pose.q.map((value) => `${round(radToDeg(value))}°`).join(' / ');
+                angles.textContent = pose.type === 'gripper'
+                    ? `gripper ${pose.closed ? 'closed' : 'open'}`
+                    : (outside
+                        ? 'out of limits'
+                        : pose.q.map((value) => `${round(radToDeg(value))}°`).join(' / '));
 
                 const actions = document.createElement('div');
                 actions.className = 'pose-acts';
@@ -3827,16 +4168,28 @@
                 go.className = 'pose-act';
                 go.type = 'button';
                 go.textContent = '▶';
-                go.title = 'planejar e executar esta pose';
-                go.disabled = outside || sequenceRunning || state.mirrorActive;
-                go.addEventListener('click', () => runPose(index));
+                go.title = pose.type === 'gripper'
+                    ? 'execute this gripper action'
+                    : 'plan and execute this position';
+                go.disabled = outside || busy || state.mirrorActive;
+                go.addEventListener('click', async () => {
+                    if (sequenceRunning || actionRunning) return;
+                    actionRunning = true;
+                    renderPoses();
+                    try {
+                        await runPose(index);
+                    } finally {
+                        actionRunning = false;
+                        renderPoses();
+                    }
+                });
 
                 const remove = document.createElement('button');
                 remove.className = 'pose-act del';
                 remove.type = 'button';
                 remove.textContent = '×';
-                remove.title = 'apagar';
-                remove.disabled = sequenceRunning;
+                remove.title = 'delete';
+                remove.disabled = busy;
                 remove.addEventListener('click', () => {
                     poses.splice(index, 1);
                     savePoses();
@@ -3846,6 +4199,7 @@
                 actions.appendChild(go);
                 actions.appendChild(remove);
 
+                row.appendChild(drag);
                 row.appendChild(name);
                 row.appendChild(angles);
                 row.appendChild(actions);
@@ -3860,6 +4214,29 @@
                 return false;
             }
 
+            if (pose.type === 'gripper') {
+                const epoch = executionEpoch;
+                const physical = state.runActive;
+                try {
+                    if (physical) {
+                        const ack = await requestGripper(pose.closed);
+                        if (ack.closed !== pose.closed) throw new Error('SERVO confirmation mismatch');
+                    }
+                    if (epoch !== executionEpoch || state.mirrorActive) return false;
+                    state.gripperClosed = pose.closed;
+                    setMoveItStatus('ok', physical
+                        ? 'SERVO confirmed; estimated 350 ms delay'
+                        : `simulation: gripper ${pose.closed ? 'closed' : 'open'}`);
+                    await new Promise((resolve) => window.setTimeout(resolve, 350));
+                    return epoch === executionEpoch && !state.mirrorActive &&
+                        (!physical || (state.runActive && state.robot && state.connected));
+                } catch (err) {
+                    mvError.textContent = String(err);
+                    setMoveItStatus('fail', 'gripper not confirmed');
+                    return false;
+                }
+            }
+
             state.goalQ = pose.q.slice();
             syncSlidersFromGoal();
             hideGhostTarget();
@@ -3869,15 +4246,23 @@
 
         poseSave.addEventListener('click', () => {
             poses.push({
-                name: `Pose ${poses.length + 1}`,
+                type: 'pose',
+                name: `Position ${poses.filter((item) => item.type !== 'gripper').length + 1}`,
                 q: state.q.slice()
             });
             savePoses();
             renderPoses();
         });
 
+        gripperAction.addEventListener('click', () => {
+            if (sequenceRunning || actionRunning || state.playing || state.planning) return;
+            poses.push({ type: 'gripper', closed: nextGripperClosed() });
+            savePoses();
+            renderPoses();
+        });
+
         poseRunAll.addEventListener('click', async () => {
-            if (sequenceRunning) {
+            if (sequenceRunning || actionRunning || state.playing || state.planning || state.mirrorActive) {
                 return;
             }
 
@@ -3886,7 +4271,7 @@
                 .filter((item) => !poseOutside(item.pose));
 
             if (!fila.length) {
-                mvError.textContent = 'nenhuma pose salva cabe nos limites atuais';
+                mvError.textContent = 'no saved pose fits within current limits';
                 return;
             }
 
@@ -3895,9 +4280,14 @@
             renderPoses();
 
             let parouEm = -1;
+            const epoch = executionEpoch;
 
             for (let i = 0; i < fila.length; i += 1) {
-                setMoveItStatus('planning', `sequência ${i + 1}/${fila.length}`);
+                if (epoch !== executionEpoch) {
+                    parouEm = i + 1;
+                    break;
+                }
+                setMoveItStatus('planning', `sequence ${i + 1}/${fila.length}`);
 
                 const ok = await runPose(fila[i].index);
 
@@ -3911,9 +4301,9 @@
             renderPoses();
 
             if (parouEm > 0) {
-                setMoveItStatus('fail', `parou na ${parouEm}ª`);
+                setMoveItStatus('fail', `stopped at ${parouEm}`);
             } else {
-                setMoveItStatus('ok', 'sequência concluída');
+                setMoveItStatus('ok', 'sequence completed; gripper has no completion sensor');
             }
         });
 
@@ -3921,16 +4311,16 @@
             // Apagar tudo é destrutivo, então pede o segundo clique.
             if (!clearArmed) {
                 clearArmed = true;
-                poseClear.textContent = 'Confirmar?';
+                poseClear.textContent = 'Confirm?';
                 window.setTimeout(() => {
                     clearArmed = false;
-                    poseClear.textContent = 'Limpar';
+                    poseClear.textContent = 'Clear';
                 }, 3000);
                 return;
             }
 
             clearArmed = false;
-            poseClear.textContent = 'Limpar';
+            poseClear.textContent = 'Clear';
             poses = [];
             savePoses();
             renderPoses();
@@ -3939,7 +4329,7 @@
         buildFkProbe();
         buildArm();
         ensureGhost();
-        setMode('posicao');
+        setMode('position');
         applyLimits(false);
         computeWorkspaceModel();
         loadPoses();
