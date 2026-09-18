@@ -108,6 +108,12 @@ motor_stopped = [
     True
 ]
 
+motor_settling = [
+    0,
+    0,
+    0
+]
+
 
 # ============================================================
 # CONFIGURAÇÃO DO CONTROLE
@@ -115,7 +121,9 @@ motor_stopped = [
 
 DEADBAND = 1.0
 
-RELEASE_ERROR = 1.5
+RELEASE_ERROR = 2.0
+
+SETTLING_CYCLES = 15
 
 PWM_MIN = 60
 
@@ -246,6 +254,7 @@ def stop_motors():
     for i in range(3):
 
         motor_stopped[i] = True
+        motor_settling[i] = 0
 
 
 # ============================================================
@@ -600,6 +609,7 @@ async def control_loop():
 
                     if abs(error) <= RELEASE_ERROR:
 
+                        motor_settling[i] = 0
                         commands[i] = 0
 
                     # ---------------------------------------------
@@ -608,7 +618,16 @@ async def control_loop():
 
                     else:
 
-                        motor_stopped[i] = False
+                        motor_settling[i] += 1
+
+                        if motor_settling[i] >= SETTLING_CYCLES:
+
+                            motor_stopped[i] = False
+                            motor_settling[i] = 0
+
+                        else:
+
+                            commands[i] = 0
 
 
                 # =================================================
@@ -626,6 +645,8 @@ async def control_loop():
                         commands[i] = 0
 
                         motor_stopped[i] = True
+
+                        motor_settling[i] = 0
 
                         # Reseta SOMENTE o PID daquele motor
                         pid[i].reset()
