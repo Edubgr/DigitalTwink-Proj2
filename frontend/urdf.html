@@ -586,6 +586,60 @@
             margin-left: auto;
         }
 
+        .mv-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 6px 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .mv-slider-row span {
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            min-width: 72px;
+        }
+
+        .mv-slider-row input[type="range"] {
+            flex: 1;
+            height: 4px;
+            appearance: none;
+            background: rgba(255,255,255,0.12);
+            border-radius: 2px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .mv-slider-row input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #7aa7ff;
+            border: none;
+            cursor: pointer;
+        }
+
+        .mv-slider-row input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #7aa7ff;
+            border: none;
+            cursor: pointer;
+        }
+
+        .mv-slider-row strong {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e7edf6;
+            min-width: 32px;
+            text-align: right;
+        }
+
         .mv-check {
             display: inline-flex;
             align-items: center;
@@ -964,6 +1018,12 @@
                         </div>
                     </div>
 
+                    <div class="mv-slider-row">
+                        <span>VELOCIDADE</span>
+                        <input type="range" id="mvVelocity" min="0.1" max="1.0" step="0.05" value="0.5">
+                        <strong id="mvVelocityVal">0.50</strong>
+                    </div>
+
                     <div class="mv-actions">
                         <button class="mv-btn primary" id="mvPlan" type="button">Planejar</button>
                         <button class="mv-btn go" id="mvExecute" type="button" disabled>Executar</button>
@@ -1062,6 +1122,7 @@
             commandedQ: null,
             showWorkspace: false,
             showTrail: false,
+            velocityScale: 0.5,
 
             // 'posicao' = sliders comandam o alvo
             // 'limites' = sliders editam a faixa de cada junta
@@ -2206,6 +2267,13 @@
         const mvDuration = document.getElementById('mvDuration');
         const mvError = document.getElementById('mvError');
 
+        const mvVelocity = document.getElementById('mvVelocity');
+        const mvVelocityVal = document.getElementById('mvVelocityVal');
+        mvVelocity.addEventListener('input', () => {
+            state.velocityScale = parseFloat(mvVelocity.value);
+            mvVelocityVal.textContent = state.velocityScale.toFixed(2);
+        });
+
         function setMoveItStatus(kind, text) {
             mvStatus.className = `mv-pill ${kind}`;
             mvStatus.textContent = text;
@@ -2358,14 +2426,10 @@
                 const result = await moveitFetch('/api/moveit/plan', {
                     start: state.q,
                     goal,
-                    // O planejador precisa dos limites operacionais:
-                    // prender só o alvo deixaria o caminho sair da
-                    // faixa escolhida.
                     limits: state.limits,
-                    // Configuração que o gêmeo sabe que atinge o alvo.
-                    // Sem ela a IK escolhe o ramo errado e devolve uma
-                    // solução fora da janela.
-                    seed: goal.type === 'pose' ? state.goalSeed : null
+                    seed: goal.type === 'pose' ? state.goalSeed : null,
+                    velocity_scale: state.velocityScale,
+                    acceleration_scale: state.velocityScale
                 });
 
                 if (!result.ok) {
