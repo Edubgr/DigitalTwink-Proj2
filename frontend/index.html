@@ -792,6 +792,46 @@ input[type="range"]::-moz-range-thumb {
 }
 
 
+.pid-row {
+
+    display: flex;
+
+    gap: 8px;
+
+    padding: 5px 0;
+
+    border-bottom: 1px solid #232c35;
+}
+
+
+.pid-item {
+
+    display: flex;
+
+    gap: 3px;
+
+    flex: 1;
+}
+
+
+.pid-item .pid-label {
+
+    color: #7f8a99;
+
+    font-size: 10px;
+}
+
+
+.pid-item .pid-val {
+
+    color: #e0e5eb;
+
+    font-weight: bold;
+
+    font-size: 11px;
+}
+
+
 /* ============================================================
    CHARTS
    ============================================================ */
@@ -1344,53 +1384,22 @@ canvas {
                     </div>
 
 
-                    <div class="value-row">
+                    <div class="pid-row">
 
-                        <span class="value-label">
-                            KP
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KP</span>
+                            <span id="pidkp1" class="pid-val">2.00</span>
+                        </div>
 
-                        <span
-                            id="pidkp1"
-                            class="value">
+                        <div class="pid-item">
+                            <span class="pid-label">KI</span>
+                            <span id="pidki1" class="pid-val">0.00</span>
+                        </div>
 
-                            2.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KI
-                        </span>
-
-                        <span
-                            id="pidki1"
-                            class="value">
-
-                            0.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KD
-                        </span>
-
-                        <span
-                            id="pidkd1"
-                            class="value">
-
-                            0.02
-
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KD</span>
+                            <span id="pidkd1" class="pid-val">0.02</span>
+                        </div>
 
                     </div>
 
@@ -1474,53 +1483,22 @@ canvas {
                     </div>
 
 
-                    <div class="value-row">
+                    <div class="pid-row">
 
-                        <span class="value-label">
-                            KP
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KP</span>
+                            <span id="pidkp2" class="pid-val">2.00</span>
+                        </div>
 
-                        <span
-                            id="pidkp2"
-                            class="value">
+                        <div class="pid-item">
+                            <span class="pid-label">KI</span>
+                            <span id="pidki2" class="pid-val">0.00</span>
+                        </div>
 
-                            2.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KI
-                        </span>
-
-                        <span
-                            id="pidki2"
-                            class="value">
-
-                            0.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KD
-                        </span>
-
-                        <span
-                            id="pidkd2"
-                            class="value">
-
-                            0.02
-
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KD</span>
+                            <span id="pidkd2" class="pid-val">0.02</span>
+                        </div>
 
                     </div>
 
@@ -1604,53 +1582,22 @@ canvas {
                     </div>
 
 
-                    <div class="value-row">
+                    <div class="pid-row">
 
-                        <span class="value-label">
-                            KP
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KP</span>
+                            <span id="pidkp3" class="pid-val">2.00</span>
+                        </div>
 
-                        <span
-                            id="pidkp3"
-                            class="value">
+                        <div class="pid-item">
+                            <span class="pid-label">KI</span>
+                            <span id="pidki3" class="pid-val">0.00</span>
+                        </div>
 
-                            2.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KI
-                        </span>
-
-                        <span
-                            id="pidki3"
-                            class="value">
-
-                            0.00
-
-                        </span>
-
-                    </div>
-
-
-                    <div class="value-row">
-
-                        <span class="value-label">
-                            KD
-                        </span>
-
-                        <span
-                            id="pidkd3"
-                            class="value">
-
-                            0.02
-
-                        </span>
+                        <div class="pid-item">
+                            <span class="pid-label">KD</span>
+                            <span id="pidkd3" class="pid-val">0.02</span>
+                        </div>
 
                     </div>
 
