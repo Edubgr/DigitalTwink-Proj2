@@ -8,7 +8,63 @@ import serial
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from serial_manager import ESP32Serial
+from serial_manager import ESP32Serial, MovingAverage
+
+
+# ============================================================
+# MOVING AVERAGE
+# ============================================================
+
+
+def test_moving_average_single_value():
+    ma = MovingAverage(window=5)
+    assert ma.update(100) == 100.0
+
+
+def test_moving_average_constant_values():
+    ma = MovingAverage(window=5)
+    for _ in range(10):
+        result = ma.update(200)
+    assert result == 200.0
+
+
+def test_moving_average_smoothing():
+    ma = MovingAverage(window=4)
+    values = [100, 110, 100, 110]
+    results = [ma.update(v) for v in values]
+
+    assert results[0] == 100.0
+    assert results[1] == 105.0
+    assert results[2] == pytest.approx(103.33, rel=1e-2)
+    assert results[3] == 105.0
+
+
+def test_moving_average_window_limit():
+    ma = MovingAverage(window=3)
+    ma.update(10)
+    ma.update(20)
+    ma.update(30)
+    result = ma.update(40)
+
+    assert result == 30.0
+
+
+def test_moving_average_reset():
+    ma = MovingAverage(window=5)
+    ma.update(100)
+    ma.update(200)
+    ma.reset()
+    result = ma.update(50)
+
+    assert result == 50.0
+
+
+def test_moving_average_partial_window():
+    ma = MovingAverage(window=10)
+    ma.update(100)
+    ma.update(200)
+
+    assert ma.update(300) == 200.0
 
 
 # ============================================================

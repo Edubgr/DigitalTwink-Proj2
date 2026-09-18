@@ -2,8 +2,23 @@ import logging
 import serial
 import threading
 import time
+from collections import deque
 
 logger = logging.getLogger(__name__)
+
+
+class MovingAverage:
+
+    def __init__(self, window=8):
+        self._window = window
+        self._buffer = deque(maxlen=window)
+
+    def update(self, value):
+        self._buffer.append(value)
+        return sum(self._buffer) / len(self._buffer)
+
+    def reset(self):
+        self._buffer.clear()
 
 
 class ESP32Serial:
@@ -11,7 +26,7 @@ class ESP32Serial:
     RECONNECT_DELAY = 2.0
     MAX_RECONNECT_ATTEMPTS = 10
 
-    def __init__(self, port="COM7", baudrate=115200):
+    def __init__(self, port="COM7", baudrate=115200, filter_window=8):
         self.port = port
         self.baudrate = baudrate
 
@@ -23,6 +38,13 @@ class ESP32Serial:
 
         # Últimos comandos enviados
         self.command = [0, 0, 0]
+
+        # Filtros de média móvel (um por motor)
+        self._filters = [
+            MovingAverage(filter_window),
+            MovingAverage(filter_window),
+            MovingAverage(filter_window),
+        ]
 
         self.lock = threading.Lock()
 
@@ -166,15 +188,20 @@ class ESP32Serial:
 
         try:
 
-            positions = [
+            raw = [
                 int(data[1]),
                 int(data[2]),
                 int(data[3])
             ]
 
+            filtered = [
+                int(self._filters[i].update(raw[i]))
+                for i in range(3)
+            ]
+
             with self.lock:
 
-                self.position = positions
+                self.position = filtered
 
         except ValueError:
             pass
