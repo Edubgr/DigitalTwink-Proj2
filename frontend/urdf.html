@@ -144,7 +144,7 @@
 
         .viewer {
             display: grid;
-            grid-template-rows: auto 1fr 0fr auto;
+            grid-template-rows: auto 1fr auto;
             min-height: 0;
         }
 
@@ -893,23 +893,21 @@
 
         .viewer-chart-wrap {
             height: 180px;
-            min-height: 0;
-            overflow: hidden;
+            min-height: 180px;
             border-top: 1px solid var(--line);
             background: rgba(0,0,0,0.15);
+            display: none;
             position: relative;
-            transition: min-height 0.2s ease;
         }
-        .viewer-chart-wrap.visible { min-height: 180px; }
+        .viewer-chart-wrap.visible { display: block; }
 
         .viewer-chart { width: 100%; height: 100%; display: block; }
 
-        /* Chart visível: a row já existe, só precisa de altura */
-        .viewer.has-chart .viewer-chart-wrap { min-height: 180px; }
+        /* Quando gráfico visível, o canvas 3D cede espaço */
+        .viewer.has-chart { grid-template-rows: auto 1fr auto auto; }
 
         @media (max-width: 720px) {
-            .viewer-chart-wrap { height: 140px; }
-            .viewer-chart-wrap.visible { min-height: 140px; }
+            .viewer-chart-wrap { height: 140px; min-height: 140px; }
         }
     </style>
 </head>
@@ -1129,7 +1127,14 @@
         import * as THREE from 'three';
         import { STLLoader } from 'three/addons/loaders/STLLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { Chart } from 'chart.js';
+
+        let Chart = null;
+        try {
+            const chartMod = await import('chart.js');
+            Chart = chartMod.Chart;
+        } catch (e) {
+            console.warn('Chart.js não carregou:', e);
+        }
 
         // ------------------------------------------------------------
         // O gêmeo virtual vive em RADIANOS no frame do URDF.
@@ -3011,6 +3016,7 @@
         };
 
         function initChart() {
+            if (!Chart) return;
             if (motorChart) {
                 motorChart.destroy();
             }
