@@ -1347,6 +1347,57 @@ canvas {
                     <div class="value-row">
 
                         <span class="value-label">
+                            KP
+                        </span>
+
+                        <span
+                            id="pidkp1"
+                            class="value">
+
+                            2.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KI
+                        </span>
+
+                        <span
+                            id="pidki1"
+                            class="value">
+
+                            0.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KD
+                        </span>
+
+                        <span
+                            id="pidkd1"
+                            class="value">
+
+                            0.02
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
                             POSITION
                         </span>
 
@@ -1426,6 +1477,57 @@ canvas {
                     <div class="value-row">
 
                         <span class="value-label">
+                            KP
+                        </span>
+
+                        <span
+                            id="pidkp2"
+                            class="value">
+
+                            2.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KI
+                        </span>
+
+                        <span
+                            id="pidki2"
+                            class="value">
+
+                            0.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KD
+                        </span>
+
+                        <span
+                            id="pidkd2"
+                            class="value">
+
+                            0.02
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
                             POSITION
                         </span>
 
@@ -1499,6 +1601,57 @@ canvas {
 
                     <div class="motor-name">
                         MOTOR 03
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KP
+                        </span>
+
+                        <span
+                            id="pidkp3"
+                            class="value">
+
+                            2.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KI
+                        </span>
+
+                        <span
+                            id="pidki3"
+                            class="value">
+
+                            0.00
+
+                        </span>
+
+                    </div>
+
+
+                    <div class="value-row">
+
+                        <span class="value-label">
+                            KD
+                        </span>
+
+                        <span
+                            id="pidkd3"
+                            class="value">
+
+                            0.02
+
+                        </span>
+
                     </div>
 
 
@@ -2082,6 +2235,8 @@ function connect() {
 
                 }
 
+                updatePidDisplay(data.all);
+
             }
 
 
@@ -2117,6 +2272,8 @@ function connect() {
                     document.getElementById("kd").value = cached.kd;
 
                 }
+
+                updatePidDisplay(all);
 
             }
 
@@ -2906,9 +3063,14 @@ function updateFeedback(data) {
 
     /*
      * A fonte de verdade do PID fica no frontend.
-     * Não ressincronizamos os campos a partir do feedback,
+     * Não ressincronizamos os campos de input a partir do feedback,
      * porque isso sobrescreve a entrada atual do usuário.
+     * Mas atualizamos os displays nos cards de motor.
      */
+
+    if (data.pid) {
+        updatePidDisplay(data.pid);
+    }
 
 
 
@@ -3063,6 +3225,44 @@ function clearGraphs() {
 
 
     drawAllCharts();
+
+}
+
+
+/* ============================================================
+   ATUALIZAR PID NOS CARDS
+   ============================================================ */
+
+function updatePidDisplay(allPids) {
+
+    if (!allPids) return;
+
+    for (let i = 0; i < 3; i++) {
+
+        const key = `motor_${i}`;
+
+        if (allPids[key]) {
+
+            const p = allPids[key];
+
+            document.getElementById(
+                `pidkp${i + 1}`
+            ).textContent =
+                parseFloat(p.kp).toFixed(2);
+
+            document.getElementById(
+                `pidki${i + 1}`
+            ).textContent =
+                parseFloat(p.ki).toFixed(2);
+
+            document.getElementById(
+                `pidkd${i + 1}`
+            ).textContent =
+                parseFloat(p.kd).toFixed(2);
+
+        }
+
+    }
 
 }
 

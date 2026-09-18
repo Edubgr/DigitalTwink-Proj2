@@ -471,9 +471,12 @@ def build_feedback_payload():
         "error": errors,
         "pwm": feedback["command"],
         "pid": {
-            "kp": pid[0].kp,
-            "ki": pid[0].ki,
-            "kd": pid[0].kd
+            f"motor_{i}": {
+                "kp": pid[i].kp,
+                "ki": pid[i].ki,
+                "kd": pid[i].kd,
+            }
+            for i in range(3)
         }
     }
 
