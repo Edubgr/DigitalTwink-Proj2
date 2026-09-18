@@ -11,6 +11,7 @@ class PID:
         kd=0.02,
         output_min=-255,
         output_max=255,
+        derivative_filter=0.2,
         time_fn=None,
     ):
         self.kp = kp
@@ -23,6 +24,9 @@ class PID:
         self.integral = 0.0
         self.previous_error = 0.0
         self.previous_time = None
+
+        self._derivative_filter = derivative_filter
+        self._filtered_derivative = 0.0
 
         self._time_fn = time_fn or time.perf_counter
 
@@ -47,15 +51,20 @@ class PID:
             min(100, self.integral)
         )
 
-        derivative = (
+        raw_derivative = (
             error - self.previous_error
         ) / dt
 
+        self._filtered_derivative = (
+            self._derivative_filter * raw_derivative
+            + (1.0 - self._derivative_filter)
+            * self._filtered_derivative
+        )
 
         output = (
             self.kp * error
             + self.ki * self.integral
-            + self.kd * derivative
+            + self.kd * self._filtered_derivative
         )
 
         output = max(
@@ -73,3 +82,4 @@ class PID:
         self.integral = 0.0
         self.previous_error = 0.0
         self.previous_time = None
+        self._filtered_derivative = 0.0

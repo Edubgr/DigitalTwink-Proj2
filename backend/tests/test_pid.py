@@ -85,7 +85,7 @@ def test_integral_accumulates():
 
 def test_derivative_on_constant_error():
     clock = FakeClock(0.0)
-    pid = PID(kp=0.0, ki=0.0, kd=1.0, time_fn=clock)
+    pid = PID(kp=0.0, ki=0.0, kd=1.0, derivative_filter=1.0, time_fn=clock)
 
     clock.advance(0.01)
     pid.update(target=10.0, current=0.0)
@@ -98,7 +98,7 @@ def test_derivative_on_constant_error():
 
 def test_derivative_on_changing_error():
     clock = FakeClock(0.0)
-    pid = PID(kp=0.0, ki=0.0, kd=1.0, output_min=-1000, time_fn=clock)
+    pid = PID(kp=0.0, ki=0.0, kd=1.0, output_min=-1000, derivative_filter=1.0, time_fn=clock)
 
     clock.advance(0.01)
     pid.update(target=10.0, current=0.0)
@@ -107,6 +107,26 @@ def test_derivative_on_changing_error():
     output = pid.update(target=10.0, current=5.0)
 
     assert output == -500
+
+
+def test_derivative_filter_smooths():
+    clock = FakeClock(0.0)
+    pid = PID(
+        kp=0.0, ki=0.0, kd=1.0,
+        derivative_filter=0.2,
+        output_min=-1000, time_fn=clock,
+    )
+
+    clock.advance(0.01)
+    pid.update(target=10.0, current=0.0)
+
+    clock.advance(0.01)
+    out1 = pid.update(target=10.0, current=5.0)
+
+    clock.advance(0.01)
+    out2 = pid.update(target=10.0, current=5.0)
+
+    assert abs(out2) < abs(out1)
 
 
 # ============================================================
