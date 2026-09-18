@@ -3008,6 +3008,7 @@
         const CHART_TIME_WINDOW = 10;
         const CHART_MOTOR_COLORS = ['#f39c4a', '#45d6c0', '#e5c454'];
         const CHART_MOTOR_NAMES = ['revbase', 'revlink1', 'relink2'];
+        const CHART_GOAL_COLOR = 'rgba(255,255,255,0.25)';
 
         let motorChart = null;
         let chartStartTime = null;
@@ -3088,6 +3089,39 @@
                             pointRadius: 0,
                             fill: false,
                             tension: 0.1
+                        },
+                        {
+                            label: 'revbase alvo',
+                            data: [],
+                            borderColor: CHART_GOAL_COLOR,
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderDash: [2, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: 'revlink1 alvo',
+                            data: [],
+                            borderColor: CHART_GOAL_COLOR,
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderDash: [2, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: 'relink2 alvo',
+                            data: [],
+                            borderColor: CHART_GOAL_COLOR,
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderDash: [2, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0
                         }
                     ]
                 },
@@ -3195,6 +3229,8 @@
             for (let i = 0; i < 3; i++) {
                 motorChart.data.datasets[i].data.push({ x: elapsed, y: plannedDeg[i] });
                 motorChart.data.datasets[i + 3].data.push({ x: elapsed, y: actualDeg[i] });
+                // Alvo: usa goalQ em graus (constante por sessão)
+                motorChart.data.datasets[i + 6].data.push({ x: elapsed, y: radToDeg(state.goalQ[i]) });
             }
 
             const windowMin = Math.max(0, elapsed - CHART_TIME_WINDOW);
