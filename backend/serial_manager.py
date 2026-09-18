@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class MovingAverage:
 
-    def __init__(self, window=8):
+    def __init__(self, window=3):
         self._window = window
         self._buffer = deque(maxlen=window)
 

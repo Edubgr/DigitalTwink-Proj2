@@ -32,7 +32,7 @@ PID_CONFIG_PATH = BASE_DIR / "pid_config.json"
 # FILTRO
 # ============================================================
 
-FILTER_WINDOW = 8
+FILTER_WINDOW = 3
 
 
 # ============================================================
@@ -131,11 +131,11 @@ RELEASE_ERROR = 2.0
 
 SETTLING_CYCLES = 15
 
-PWM_MIN = 60
+PWM_MIN = 80
 
 PWM_MAX = 255
 
-PWM_BOOST = 80
+PWM_BOOST = 120
 
 STUCK_THRESHOLD = 0.1
 
