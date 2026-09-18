@@ -2538,6 +2538,11 @@
             }
 
             stopPreview();
+
+            // Salva a trajetória para o gráfico amostrar em tempo real
+            chartTrajectory = state.plan;
+            chartTrajectoryStart = performance.now();
+
             if (state.runActive) {
                 playTrajectoryReal(state.plan, onDone);
             } else {
@@ -2911,6 +2916,8 @@
                 if (!state.showChart && motorChart) {
                     motorChart.destroy();
                     motorChart = null;
+                    chartTrajectory = null;
+                    chartTrajectoryStart = null;
                 }
                 // Espera o browser reflowar antes de criar/grafico
                 requestAnimationFrame(() => {
@@ -3004,6 +3011,8 @@
 
         let motorChart = null;
         let chartStartTime = null;
+        let chartTrajectory = null;
+        let chartTrajectoryStart = null;
 
         function initChart() {
             if (motorChart) {
@@ -3139,7 +3148,7 @@
                         },
                         y: {
                             display: true,
-                            min: 0,
+                            min: -180,
                             max: 180,
                             title: {
                                 display: true,
@@ -3150,7 +3159,7 @@
                             grid: {
                                 color: 'rgba(38,50,65,0.5)'
                             },
-                            ticks: { color: '#8b97a8', font: { size: 9, family: 'Consolas, monospace' }, stepSize: 30 }
+                            ticks: { color: '#8b97a8', font: { size: 9, family: 'Consolas, monospace' }, stepSize: 60 }
                         }
                     }
                 }
@@ -3165,8 +3174,23 @@
             if (chartStartTime === null) return;
 
             const elapsed = (performance.now() - chartStartTime) / 1000;
-            const plannedDeg = state.goalQ.map(radToDeg);
             const actualDeg = state.q.map(radToDeg);
+
+            // Posição planejada: amostra a trajetória em tempo real
+            let plannedDeg = [0, 0, 0];
+            if (chartTrajectory && chartTrajectoryStart !== null) {
+                const trajElapsed = (performance.now() - chartTrajectoryStart) / 1000;
+                const totalDuration = chartTrajectory[chartTrajectory.length - 1].t;
+                const sampleTime = Math.min(trajElapsed, totalDuration);
+                const sampled = sampleTrajectory(chartTrajectory, sampleTime);
+                plannedDeg = sampled.map(radToDeg);
+
+                // Limpa ao chegar no fim
+                if (trajElapsed >= totalDuration) {
+                    chartTrajectory = null;
+                    chartTrajectoryStart = null;
+                }
+            }
 
             for (let i = 0; i < 3; i++) {
                 motorChart.data.datasets[i].data.push({ x: elapsed, y: plannedDeg[i] });
