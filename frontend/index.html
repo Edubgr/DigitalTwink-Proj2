@@ -222,7 +222,7 @@ header h1 {
 
     height: 100%;
 
-    overflow: visible;
+    overflow: hidden;
 }
 
 
@@ -688,9 +688,10 @@ input[type="range"]::-moz-range-thumb {
 
     gap: 10px;
 
-    height: 100%;
-
     flex: 1 1 auto;
+
+    min-height: 0;
+    overflow: hidden;
 }
 
 
@@ -702,13 +703,15 @@ input[type="range"]::-moz-range-thumb {
 
     border-radius: 4px;
 
-    padding: 12px;
+    padding: 8px 10px;
 
     display: flex;
 
     flex-direction: column;
 
-    height: 100%;
+    min-height: 0;
+
+    overflow: hidden;
 }
 
 
@@ -732,11 +735,11 @@ input[type="range"]::-moz-range-thumb {
 
 .motor-name {
 
-    font-size: 12px;
+    font-size: 11px;
 
     font-weight: bold;
 
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 
     letter-spacing: 1px;
 }
@@ -766,7 +769,7 @@ input[type="range"]::-moz-range-thumb {
 
     justify-content: space-between;
 
-    padding: 5px 0;
+    padding: 3px 0;
 
     border-bottom: 1px solid #232c35;
 }
@@ -798,7 +801,7 @@ input[type="range"]::-moz-range-thumb {
 
     gap: 8px;
 
-    padding: 5px 0;
+    padding: 3px 0;
 
     border-bottom: 1px solid #232c35;
 }
