@@ -144,7 +144,7 @@
 
         .viewer {
             display: grid;
-            grid-template-rows: auto 1fr auto;
+            grid-template-rows: auto 1fr 0fr auto;
             min-height: 0;
         }
 
@@ -893,21 +893,23 @@
 
         .viewer-chart-wrap {
             height: 180px;
-            min-height: 180px;
+            min-height: 0;
+            overflow: hidden;
             border-top: 1px solid var(--line);
             background: rgba(0,0,0,0.15);
-            display: none;
             position: relative;
+            transition: min-height 0.2s ease;
         }
-        .viewer-chart-wrap.visible { display: block; }
+        .viewer-chart-wrap.visible { min-height: 180px; }
 
         .viewer-chart { width: 100%; height: 100%; display: block; }
 
-        /* Quando gráfico visível, o canvas 3D cede espaço */
-        .viewer.has-chart { grid-template-rows: auto 1fr auto auto; }
+        /* Chart visível: a row já existe, só precisa de altura */
+        .viewer.has-chart .viewer-chart-wrap { min-height: 180px; }
 
         @media (max-width: 720px) {
-            .viewer-chart-wrap { height: 140px; min-height: 140px; }
+            .viewer-chart-wrap { height: 140px; }
+            .viewer-chart-wrap.visible { min-height: 140px; }
         }
     </style>
 </head>
@@ -1119,7 +1121,7 @@
         "imports": {
             "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
             "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-            "chart.js": "https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js"
+            "chart.js": "https://unpkg.com/chart.js@4.4.1/dist/chart.esm.min.js"
         }
     }
     </script>
@@ -1127,6 +1129,7 @@
         import * as THREE from 'three';
         import { STLLoader } from 'three/addons/loaders/STLLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Chart } from 'chart.js';
 
         // ------------------------------------------------------------
         // O gêmeo virtual vive em RADIANOS no frame do URDF.
@@ -2904,7 +2907,6 @@
                     send({ type: 'enable_pid' });
                     pushToRealRobot();
                 }
-                initChart();
             };
 
             // Toggle do gráfico
@@ -2914,11 +2916,22 @@
                 document.querySelector('.viewer').classList.toggle('has-chart', state.showChart);
                 chartToggle.classList.toggle('active', state.showChart);
                 if (state.showChart) {
-                    resizeChart();
+                    initChart();
+                } else if (motorChart) {
+                    motorChart.destroy();
+                    motorChart = null;
                 }
+                // Redimensiona o canvas 3D após o layout mudar
+                requestAnimationFrame(() => {
+                    resizeRenderer();
+                    if (state.showChart && motorChart) {
+                        motorChart.resize();
+                    }
+                });
             });
 
             window.addEventListener('resize', () => {
+                resizeRenderer();
                 if (state.showChart) {
                     resizeChart();
                 }
@@ -3107,7 +3120,6 @@
                     },
                     scales: {
                         x: {
-                            type: 'linear',
                             display: true,
                             title: {
                                 display: true,
@@ -3118,7 +3130,14 @@
                             grid: {
                                 color: 'rgba(38,50,65,0.5)'
                             },
-                            ticks: { color: '#8b97a8', font: { size: 9, family: 'Consolas, monospace' } }
+                            ticks: {
+                                color: '#8b97a8',
+                                font: { size: 9, family: 'Consolas, monospace' },
+                                maxTicksLimit: 10,
+                                callback: function(value, index) {
+                                    return index % 3 === 0 ? this.getLabelForValue(value) : '';
+                                }
+                            }
                         },
                         y: {
                             display: true,
