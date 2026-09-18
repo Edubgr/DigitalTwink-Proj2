@@ -1020,8 +1020,8 @@
 
                     <div class="mv-slider-row">
                         <span>VELOCIDADE</span>
-                        <input type="range" id="mvVelocity" min="0.1" max="1.0" step="0.05" value="0.5">
-                        <strong id="mvVelocityVal">0.50</strong>
+                        <input type="range" id="mvVelocity" min="0.1" max="3.0" step="0.1" value="0.5">
+                        <strong id="mvVelocityVal">0.5 rad/s</strong>
                     </div>
 
                     <div class="mv-actions">
@@ -2271,7 +2271,7 @@
         const mvVelocityVal = document.getElementById('mvVelocityVal');
         mvVelocity.addEventListener('input', () => {
             state.velocityScale = parseFloat(mvVelocity.value);
-            mvVelocityVal.textContent = state.velocityScale.toFixed(2);
+            mvVelocityVal.textContent = state.velocityScale.toFixed(1) + ' rad/s';
         });
 
         function setMoveItStatus(kind, text) {
