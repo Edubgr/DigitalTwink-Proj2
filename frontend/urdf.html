@@ -860,6 +860,55 @@
             header { flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; }
             .header-left { width: 100%; justify-content: space-between; }
         }
+
+        /* ============================================================
+           GRÁFICO DE POSIÇÕES DOS MOTORES
+           ============================================================ */
+
+        .viewer-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255,255,255,0.02);
+            color: var(--muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .viewer-toggle:hover {
+            color: var(--text);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .viewer-toggle.active {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(89,214,201,0.1);
+        }
+        .viewer-toggle svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+        .viewer-chart-wrap {
+            height: 180px;
+            min-height: 180px;
+            border-top: 1px solid var(--line);
+            background: rgba(0,0,0,0.15);
+            display: none;
+            position: relative;
+        }
+        .viewer-chart-wrap.visible { display: block; }
+
+        .viewer-chart { width: 100%; height: 100%; display: block; }
+
+        /* Quando gráfico visível, o canvas 3D cede espaço */
+        .viewer.has-chart { grid-template-rows: auto 1fr auto auto; }
+
+        @media (max-width: 720px) {
+            .viewer-chart-wrap { height: 140px; min-height: 140px; }
+        }
     </style>
 </head>
 <body>
@@ -882,10 +931,18 @@
                         <div class="panel-title">VISUALIZAÇÃO</div>
                         <div class="panel-subtitle">Arraste a esfera rosa (TCP) para escolher o alvo</div>
                     </div>
+                    <button class="viewer-toggle" id="chartToggle" type="button" title="Mostrar/ocultar gráfico de posições dos motores">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        <span>Gráfico</span>
+                    </button>
                 </div>
 
                 <div class="viewer-stage">
                     <canvas id="canvas3d"></canvas>
+                </div>
+
+                <div class="viewer-chart-wrap" id="chartWrap">
+                    <canvas class="viewer-chart" id="motorChart"></canvas>
                 </div>
 
                 <div class="legend">
@@ -1025,7 +1082,6 @@
                     </div>
 
                     <div class="mv-actions">
-                        <button class="mv-btn primary" id="mvPlan" type="button">Planejar</button>
                         <button class="mv-btn go" id="mvExecute" type="button" disabled>Executar</button>
                         <button class="mv-btn" id="mvHome" type="button">Home</button>
                         <button class="mv-btn run-btn" id="btnRun" type="button" title="Ativar espelhamento e PID no robô real">▶ RUN</button>
@@ -1062,7 +1118,8 @@
     {
         "imports": {
             "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+            "chart.js": "https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js"
         }
     }
     </script>
@@ -1129,7 +1186,14 @@
             mode: 'posicao',
 
             // Limites operacionais, sempre dentro dos do URDF.
-            limits: DEFAULT_LIMITS.map((pair) => pair.slice())
+            limits: DEFAULT_LIMITS.map((pair) => pair.slice()),
+
+            // Gráfico de posições
+            showChart: false,
+            chartTime: [],
+            chartPlanned: [[], [], []],
+            chartActual: [[], [], []],
+            chartMaxPoints: 300
         };
 
         const sliders = [
@@ -1146,6 +1210,10 @@
         const targetLabelIds = ['targetLabel0', 'targetLabel1', 'targetLabel2'];
         const measuredValueIds = ['measuredValue0', 'measuredValue1', 'measuredValue2'];
         const errorValueIds = ['errorValue0', 'errorValue1', 'errorValue2'];
+
+        const chartWrap = document.getElementById('chartWrap');
+        const chartCanvas = document.getElementById('motorChart');
+        const chartToggle = document.getElementById('chartToggle');
 
         const loader = new STLLoader();
         const scene = new THREE.Scene();
@@ -2779,6 +2847,8 @@
 
             pwmMetric.textContent =
                 state.robot && Array.isArray(state.pwm) ? state.pwm.join(' / ') : '--';
+
+            updateChart();
         }
 
         function send(payload) {
@@ -2790,6 +2860,8 @@
         // O slider define o ALVO, não a pose atual — mesmo modelo do
         // RViz. O fantasma mostra o alvo; o braço real só se mexe no
         // Executar.
+        let sliderPlanTimer = null;
+
         function setSlider(index, value) {
             const degrees = Number.parseFloat(value);
             const radians = clampJoint(index, degrees * Math.PI / 180);
@@ -2812,6 +2884,14 @@
             hideGhostTarget();
 
             setMoveItStatus('idle', 'alvo definido');
+
+            // Auto-planeja 2s após a última mudança do slider.
+            clearTimeout(sliderPlanTimer);
+            sliderPlanTimer = setTimeout(() => {
+                if (state.goal && !state.planning && !state.playing) {
+                    requestPlan(state.goal);
+                }
+            }, 2000);
         }
 
         function connect() {
@@ -2824,7 +2904,25 @@
                     send({ type: 'enable_pid' });
                     pushToRealRobot();
                 }
+                initChart();
             };
+
+            // Toggle do gráfico
+            chartToggle.addEventListener('click', () => {
+                state.showChart = !state.showChart;
+                chartWrap.classList.toggle('visible', state.showChart);
+                document.querySelector('.viewer').classList.toggle('has-chart', state.showChart);
+                chartToggle.classList.toggle('active', state.showChart);
+                if (state.showChart) {
+                    resizeChart();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (state.showChart) {
+                    resizeChart();
+                }
+            });
 
             state.socket.onclose = () => {
                 updateConnection(false);
@@ -2888,6 +2986,195 @@
                 setSlider(index, event.target.value);
             });
         });
+
+        // ============================================================
+        // GRÁFICO DE POSIÇÕES DOS MOTORES
+        // ============================================================
+
+        let motorChart = null;
+        const CHART_COLORS = {
+            planned: ['rgba(89, 214, 201, 0.9)', 'rgba(122, 167, 255, 0.9)', 'rgba(245, 182, 109, 0.9)'],
+            actual:  ['rgba(255, 93, 162, 0.9)', 'rgba(100, 255, 100, 0.9)', 'rgba(255, 255, 100, 0.9)']
+        };
+
+        function initChart() {
+            if (motorChart) {
+                motorChart.destroy();
+            }
+
+            const ctx = chartCanvas.getContext('2d');
+            motorChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: state.chartTime,
+                    datasets: [
+                        {
+                            label: 'revbase planejado',
+                            data: state.chartPlanned[0],
+                            borderColor: CHART_COLORS.planned[0],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'revlink1 planejado',
+                            data: state.chartPlanned[1],
+                            borderColor: CHART_COLORS.planned[1],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'relink2 planejado',
+                            data: state.chartPlanned[2],
+                            borderColor: CHART_COLORS.planned[2],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'revbase real',
+                            data: state.chartActual[0],
+                            borderColor: CHART_COLORS.actual[0],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'revlink1 real',
+                            data: state.chartActual[1],
+                            borderColor: CHART_COLORS.actual[1],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'relink2 real',
+                            data: state.chartActual[2],
+                            borderColor: CHART_COLORS.actual[2],
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: '#cdd5df',
+                                font: { size: 10, family: 'Consolas, monospace' },
+                                usePointStyle: true,
+                                padding: 12
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(10,15,20,0.95)',
+                            titleColor: '#e7edf6',
+                            bodyColor: '#cdd5df',
+                            borderColor: '#263241',
+                            borderWidth: 1,
+                            padding: 8,
+                            displayColors: true,
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}°`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Tempo (s)',
+                                color: '#8b97a8',
+                                font: { size: 10, family: 'Consolas, monospace' }
+                            },
+                            grid: {
+                                color: 'rgba(38,50,65,0.5)'
+                            },
+                            ticks: { color: '#8b97a8', font: { size: 9, family: 'Consolas, monospace' } }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 180,
+                            title: {
+                                display: true,
+                                text: 'Posição (°)',
+                                color: '#8b97a8',
+                                font: { size: 10, family: 'Consolas, monospace' }
+                            },
+                            grid: {
+                                color: 'rgba(38,50,65,0.5)'
+                            },
+                            ticks: { color: '#8b97a8', font: { size: 9, family: 'Consolas, monospace' }, stepSize: 30 }
+                        }
+                    }
+                }
+            });
+
+            resizeChart();
+        }
+
+        function updateChart() {
+            if (!motorChart || !state.showChart) return;
+
+            const now = performance.now() / 1000;
+            const plannedDeg = state.goalQ.map(radToDeg);
+            const actualDeg = state.q.map(radToDeg);
+
+            // Adiciona novo ponto
+            state.chartTime.push(now);
+            for (let i = 0; i < 3; i++) {
+                state.chartPlanned[i].push(plannedDeg[i]);
+                state.chartActual[i].push(actualDeg[i]);
+            }
+
+            // Limita o número de pontos (janela deslizante)
+            const maxPoints = state.chartMaxPoints;
+            if (state.chartTime.length > maxPoints) {
+                state.chartTime.shift();
+                for (let i = 0; i < 3; i++) {
+                    state.chartPlanned[i].shift();
+                    state.chartActual[i].shift();
+                }
+            }
+
+            // Atualiza labels de tempo relativo (últimos N segundos)
+            motorChart.data.labels = state.chartTime.map(t => (t - state.chartTime[0]).toFixed(1));
+            motorChart.update('none');
+        }
+
+        function resizeChart() {
+            if (!motorChart) return;
+            motorChart.resize();
+        }
 
         const raycaster = new THREE.Raycaster();
         const pointerNDC = new THREE.Vector2();
@@ -2963,7 +3250,7 @@
             controls.enabled = true;
             canvas.style.cursor = '';
 
-            // Soltar só fixa o alvo. Quem planeja é o botão Planejar.
+            // Soltar fixa o alvo e planeja automaticamente.
             //
             // Vai como meta em JUNTAS: o travamento já resolveu a
             // configuração exata, então não há motivo para pedir ao
@@ -2981,7 +3268,7 @@
                     syncSlidersFromGoal();
                 }
 
-                setMoveItStatus('idle', 'alvo definido');
+                requestPlan(state.goal);
             }
         }
 
@@ -2992,18 +3279,6 @@
         // ------------------------------------------------------------
         // Botões do MoveIt
         // ------------------------------------------------------------
-
-        // Planejar usa o alvo da esfera, se houver; senão usa os
-        // valores dos sliders.
-        document.getElementById('mvPlan').addEventListener('click', () => {
-            const goal = state.goal || {
-                type: 'joint',
-                q: sliders.map((slider, index) =>
-                    clampJoint(index, Number.parseFloat(slider.value) * Math.PI / 180)
-                )
-            };
-            requestPlan(goal);
-        });
 
         document.getElementById('mvExecute').addEventListener('click', () => {
             executePlan();
