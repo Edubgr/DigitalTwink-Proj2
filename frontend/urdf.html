@@ -574,6 +574,28 @@
             box-shadow: 0 0 14px rgba(69, 214, 192, 0.7);
         }
 
+        .mv-btn.mirror-btn {
+            border-color: rgba(245, 182, 109, 0.45);
+            color: #dfe6f0;
+            background: rgba(245, 182, 109, 0.08);
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            transition: all 0.2s ease;
+        }
+
+        .mv-btn.mirror-btn:hover {
+            border-color: rgba(245, 182, 109, 0.85);
+            background: rgba(245, 182, 109, 0.18);
+            color: #ffffff;
+        }
+
+        .mv-btn.mirror-btn.active {
+            border-color: #f5b66d;
+            color: #0a0f14;
+            background: #f5b66d;
+            box-shadow: 0 0 14px rgba(245, 182, 109, 0.7);
+        }
+
         .mv-views {
             margin-top: 8px;
             padding-top: 8px;
@@ -1085,6 +1107,7 @@
                         <button class="mv-btn go" id="mvExecute" type="button" disabled>Executar</button>
                         <button class="mv-btn" id="mvHome" type="button">Home</button>
                         <button class="mv-btn run-btn" id="btnRun" type="button" title="Ativar espelhamento e PID no robô real">▶ RUN</button>
+                        <button class="mv-btn mirror-btn" id="btnMirror" type="button" title="Modo espelho: apenas ler o robô real, sem enviar comandos">◫ MIRROR</button>
                     </div>
 
                     <div class="mv-actions mv-views">
@@ -1172,6 +1195,7 @@
             playing: false,
             sendReal: false,
             runActive: false,
+            mirrorActive: false,
             plan: null,
             goal: null,
             goalQ: [0, 0, 0],
@@ -2997,6 +3021,16 @@
                             renderJoints();
                             pushStateToMoveIt();
                         }
+
+                        // Modo Mirror: espelha leitura real para 3D, sliders e gráfico
+                        if (state.mirrorActive && state.robot) {
+                            for (let i = 0; i < 3; i += 1) {
+                                const jointDeg = realMotorToJointDeg(i, state.measured[i]);
+                                state.q[i] = degreesToRadians(jointDeg);
+                            }
+                            renderJoints();
+                            syncSlidersFromState();
+                        }
                     }
 
                     if (Array.isArray(message.error)) {
@@ -3421,6 +3455,13 @@
         function toggleRun() {
             state.runActive = !state.runActive;
             state.sendReal = state.runActive;
+
+            // Mutual exclusion: desativa Mirror se Run ativar
+            if (state.runActive && state.mirrorActive) {
+                state.mirrorActive = false;
+                updateMirrorButton();
+            }
+
             updateRunButton();
 
             if (state.runActive) {
@@ -3449,6 +3490,73 @@
 
         if (btnRun) {
             btnRun.addEventListener('click', toggleRun);
+        }
+
+        // ------------------------------------------------------------
+        // Modo Espelho (Mirror): leitura do robô real sem comandos
+        // ------------------------------------------------------------
+
+        const btnMirror = document.getElementById('btnMirror');
+
+        function updateMirrorButton() {
+            if (!btnMirror) return;
+            if (state.mirrorActive) {
+                btnMirror.classList.add('active');
+                btnMirror.textContent = '■ MIRROR: ON';
+                btnMirror.title = 'MIRROR ativo: lendo robô real. Clique para desativar.';
+            } else {
+                btnMirror.classList.remove('active');
+                btnMirror.textContent = '◫ MIRROR';
+                btnMirror.title = 'Modo espelho: apenas ler o robô real, sem enviar comandos';
+            }
+        }
+
+        function toggleMirror() {
+            state.mirrorActive = !state.mirrorActive;
+
+            // Mutual exclusion: desativa Run se Mirror ativar
+            if (state.mirrorActive && state.runActive) {
+                state.runActive = false;
+                state.sendReal = false;
+                updateRunButton();
+                send({ type: 'stop' });
+            }
+
+            // Para hold ticker e qualquer trajetória em andamento
+            if (state.mirrorActive) {
+                stopHoldTicker();
+                if (state.playing) {
+                    state.playing = false;
+                    stopTrajectoryReal();
+                    ghostRoot.visible = false;
+                }
+                chartTrajectory = null;
+                chartTrajectoryStart = null;
+                chartLastPlannedDeg = state.q.map(radToDeg);
+            }
+
+            updateMirrorButton();
+
+            if (state.mirrorActive) {
+                // Entra no modo espelho: lê posição atual do robô
+                if (state.robot && Array.isArray(state.measured) && state.measured.length === 3) {
+                    for (let i = 0; i < 3; i += 1) {
+                        const jointDeg = realMotorToJointDeg(i, state.measured[i]);
+                        state.q[i] = degreesToRadians(jointDeg);
+                        state.goalQ[i] = state.q[i];
+                    }
+                    renderJoints();
+                    syncSlidersFromState();
+                    pushStateToMoveIt();
+                }
+                setMoveItStatus('ok', 'MIRROR ativo: lendo robô real');
+            } else {
+                setMoveItStatus('idle', 'MIRROR desativado');
+            }
+        }
+
+        if (btnMirror) {
+            btnMirror.addEventListener('click', toggleMirror);
         }
 
         // ------------------------------------------------------------
