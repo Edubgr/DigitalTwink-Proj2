@@ -3828,7 +3828,7 @@
                 go.type = 'button';
                 go.textContent = '▶';
                 go.title = 'planejar e executar esta pose';
-                go.disabled = outside || sequenceRunning;
+                go.disabled = outside || sequenceRunning || state.mirrorActive;
                 go.addEventListener('click', () => runPose(index));
 
                 const remove = document.createElement('button');
@@ -3856,7 +3856,7 @@
         async function runPose(index) {
             const pose = poses[index];
 
-            if (!pose || poseOutside(pose) || state.playing || state.planning) {
+            if (!pose || poseOutside(pose) || state.playing || state.planning || state.mirrorActive) {
                 return false;
             }
 
